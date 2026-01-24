@@ -1,0 +1,13 @@
+# Supabase
+.branches
+.temp
+
+# dotenvx
+.env.keys
+.env.local
+.env.*.local
+
+# Keep migrations and seed
+!migrations/
+!seed.sql
+!config.toml
