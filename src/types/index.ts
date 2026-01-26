@@ -1,5 +1,8 @@
 import { User } from "@supabase/supabase-js";
 
+// App-level types (defined first for use in Database)
+export type UserRole = "admin" | "editor" | "seo_manager";
+
 // Database Types - will be auto-generated from Supabase later
 export type Database = {
   public: {
@@ -43,12 +46,24 @@ export type Database = {
         >;
         Update: Partial<Database["public"]["Tables"]["seo_metadata"]["Insert"]>;
       };
+      profiles: {
+        Row: {
+          id: string;
+          role: UserRole;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Insert: {
+          id: string;
+          role?: UserRole;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
+      };
     };
   };
 };
-
-// App-level types
-export type UserRole = "admin" | "editor" | "seo_manager";
 
 export type AppUser = User & {
   role?: UserRole;
@@ -72,6 +87,9 @@ export type SEOMetadataInsert =
   Database["public"]["Tables"]["seo_metadata"]["Insert"];
 export type SEOMetadataUpdate =
   Database["public"]["Tables"]["seo_metadata"]["Update"];
+
+// Profile types
+export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
 // Product types
 export type Product = Database["public"]["Tables"]["products"]["Row"];
