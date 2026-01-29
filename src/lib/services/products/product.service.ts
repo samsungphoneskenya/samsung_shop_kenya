@@ -1,5 +1,4 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { Database, Product, ProductWithSEO } from "@/types";
 import {
   ProductInsert,
   ProductUpdate,
@@ -14,6 +13,11 @@ import {
   handleError,
 } from "@/lib/utils/errors";
 import { revalidatePath, revalidateTag } from "next/cache";
+import { Database } from "@/types/database.types";
+
+type Product = Database["public"]["Tables"]["products"]["Row"];
+type SEOMetadataRow = Database["public"]["Tables"]["seo_metadata"]["Row"];
+type ProductWithSEO = Product & { seo_metadata?: SEOMetadataRow | null };
 
 export class ProductService {
   constructor(private supabase: SupabaseClient<Database>) {}
@@ -46,7 +50,7 @@ export class ProductService {
       if (error) throw error;
 
       return {
-        data: data as ProductWithSEO[],
+        data: data as unknown as ProductWithSEO[],
         count: count || 0,
         hasMore: validated.offset + validated.limit < (count || 0),
       };
@@ -69,7 +73,7 @@ export class ProductService {
       if (error) throw error;
       if (!data) throw new NotFoundError("Product not found");
 
-      return data as ProductWithSEO;
+      return data as unknown as ProductWithSEO;
     } catch (error) {
       throw handleError(error);
     }
@@ -90,7 +94,7 @@ export class ProductService {
       if (error) throw error;
       if (!data) throw new NotFoundError("Product not found");
 
-      return data as ProductWithSEO;
+      return data as unknown as ProductWithSEO;
     } catch (error) {
       throw handleError(error);
     }
@@ -115,10 +119,9 @@ export class ProductService {
         throw new ValidationError("A product with this slug already exists");
       }
 
-      // Create product - validated by zod. Supabase types mismatch custom Database schema.
+      // Create product - validated by zod
       const { data, error } = await this.supabase
         .from("products")
-        // @ts-expect-error - Insert expects 'never' due to custom Database schema typing
         .insert(validated)
         .select()
         .single();
@@ -157,10 +160,9 @@ export class ProductService {
         }
       }
 
-      // Update product - validated by zod. Supabase types mismatch custom Database schema.
+      // Update product - validated by zod
       const { data, error } = await this.supabase
         .from("products")
-        // @ts-expect-error - Update expects 'never' due to custom Database schema typing
         .update(validated)
         .eq("id", id)
         .select()
@@ -234,7 +236,6 @@ export class ProductService {
 
       const { data, error } = await this.supabase
         .from("products")
-        // @ts-expect-error - Update expects 'never' due to custom Database schema typing
         .update(validated)
         .in("id", ids)
         .select();
