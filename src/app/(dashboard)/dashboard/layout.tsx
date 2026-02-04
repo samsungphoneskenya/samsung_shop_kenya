@@ -37,6 +37,12 @@ export default async function DashboardLayout({
                   Products
                 </Link>
                 <Link
+                  href="/dashboard/orders"
+                  className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                >
+                  Orders
+                </Link>
+                <Link
                   href="/dashboard/categories"
                   className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
                 >
@@ -48,12 +54,6 @@ export default async function DashboardLayout({
                 >
                   Pages
                 </Link>
-                <Link
-                  href="/dashboard/orders"
-                  className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                >
-                  Orders
-                </Link>
                 {(profile?.role === "admin" ||
                   profile?.role === "seo_manager") && (
                   <Link
@@ -64,12 +64,20 @@ export default async function DashboardLayout({
                   </Link>
                 )}
                 {profile?.role === "admin" && (
-                  <Link
-                    href="/dashboard/analytics"
-                    className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                  >
-                    Analytics
-                  </Link>
+                  <>
+                    <Link
+                      href="/dashboard/users"
+                      className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                    >
+                      Users
+                    </Link>
+                    <Link
+                      href="/dashboard/analytics"
+                      className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                    >
+                      Analytics
+                    </Link>
+                  </>
                 )}
               </div>
             </div>

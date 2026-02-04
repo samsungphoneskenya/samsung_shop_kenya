@@ -532,6 +532,10 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          is_active: boolean | null
+          last_login: string | null
+          login_count: number | null
+          notes: string | null
           role: string
           updated_at: string | null
         }
@@ -541,6 +545,10 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
+          is_active?: boolean | null
+          last_login?: string | null
+          login_count?: number | null
+          notes?: string | null
           role?: string
           updated_at?: string | null
         }
@@ -550,6 +558,10 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          is_active?: boolean | null
+          last_login?: string | null
+          login_count?: number | null
+          notes?: string | null
           role?: string
           updated_at?: string | null
         }
@@ -612,18 +624,128 @@ export type Database = {
         }
         Relationships: []
       }
+      user_activity_logs: {
+        Row: {
+          action: string
+          changes: Json | null
+          created_at: string | null
+          entity_id: string | null
+          entity_name: string | null
+          entity_type: string | null
+          id: string
+          ip_address: unknown
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          changes?: Json | null
+          created_at?: string | null
+          entity_id?: string | null
+          entity_name?: string | null
+          entity_type?: string | null
+          id?: string
+          ip_address?: unknown
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          changes?: Json | null
+          created_at?: string | null
+          entity_id?: string | null
+          entity_name?: string | null
+          entity_type?: string | null
+          id?: string
+          ip_address?: unknown
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_activity_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_sessions: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          ip_address: unknown
+          last_activity: string | null
+          session_token: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          ip_address?: unknown
+          last_activity?: string | null
+          session_token: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          ip_address?: unknown
+          last_activity?: string | null
+          session_token?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      cleanup_old_activity_logs: { Args: never; Returns: number }
       decrement_product_quantity: {
         Args: { product_id: string; quantity_to_remove: number }
         Returns: undefined
       }
       generate_order_number: { Args: never; Returns: string }
+      get_user_statistics: {
+        Args: { p_user_id: string }
+        Returns: {
+          last_login: string
+          orders_managed: number
+          products_created: number
+          products_updated: number
+          total_actions: number
+        }[]
+      }
       increment_product_quantity: {
         Args: { product_id: string; quantity_to_add: number }
+        Returns: undefined
+      }
+      log_user_activity: {
+        Args: {
+          p_action: string
+          p_changes?: Json
+          p_entity_id?: string
+          p_entity_name?: string
+          p_entity_type?: string
+          p_user_id: string
+        }
         Returns: undefined
       }
     }

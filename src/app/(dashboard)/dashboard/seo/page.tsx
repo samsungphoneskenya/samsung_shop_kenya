@@ -17,11 +17,11 @@ export default async function SEODashboardPage() {
   const [productsResult, pagesResult, seoMetadataResult] = await Promise.all([
     supabase
       .from("products")
-      .select("id, title, slug, status, seo_metadata(*)")
+      .select("id, title, slug, status")
       .eq("status", "published"),
     supabase
       .from("pages")
-      .select("id, title, slug, status, seo_metadata(*)")
+      .select("id, title, slug, status")
       .eq("status", "published"),
     supabase.from("seo_metadata").select("*"),
   ]);
