@@ -183,6 +183,177 @@ export type Database = {
           },
         ]
       }
+      order_items: {
+        Row: {
+          created_at: string | null
+          id: string
+          order_id: string
+          product_id: string
+          product_image: string | null
+          product_sku: string | null
+          product_slug: string
+          product_title: string
+          quantity: number
+          subtotal: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          order_id: string
+          product_id: string
+          product_image?: string | null
+          product_sku?: string | null
+          product_slug: string
+          product_title: string
+          quantity: number
+          subtotal: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          order_id?: string
+          product_id?: string
+          product_image?: string | null
+          product_sku?: string | null
+          product_slug?: string
+          product_title?: string
+          quantity?: number
+          subtotal?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_status_history: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          notes: string | null
+          order_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          order_id: string
+          status: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_status_history_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_status_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          created_at: string | null
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string
+          delivery_lat: number | null
+          delivery_lng: number | null
+          delivery_location: string
+          delivery_notes: string | null
+          delivery_place_id: string | null
+          estimated_delivery: string | null
+          id: string
+          order_number: string
+          payment_method: string | null
+          payment_status: string | null
+          shipping_fee: number | null
+          status: string
+          subtotal: number
+          tax: number | null
+          total: number
+          tracking_number: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_email?: string | null
+          customer_name: string
+          customer_phone: string
+          delivery_lat?: number | null
+          delivery_lng?: number | null
+          delivery_location: string
+          delivery_notes?: string | null
+          delivery_place_id?: string | null
+          estimated_delivery?: string | null
+          id?: string
+          order_number: string
+          payment_method?: string | null
+          payment_status?: string | null
+          shipping_fee?: number | null
+          status?: string
+          subtotal: number
+          tax?: number | null
+          total: number
+          tracking_number?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string
+          delivery_lat?: number | null
+          delivery_lng?: number | null
+          delivery_location?: string
+          delivery_notes?: string | null
+          delivery_place_id?: string | null
+          estimated_delivery?: string | null
+          id?: string
+          order_number?: string
+          payment_method?: string | null
+          payment_status?: string | null
+          shipping_fee?: number | null
+          status?: string
+          subtotal?: number
+          tax?: number | null
+          total?: number
+          tracking_number?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       pages: {
         Row: {
           content: string | null
@@ -446,7 +617,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      decrement_product_quantity: {
+        Args: { product_id: string; quantity_to_remove: number }
+        Returns: undefined
+      }
+      generate_order_number: { Args: never; Returns: string }
+      increment_product_quantity: {
+        Args: { product_id: string; quantity_to_add: number }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
