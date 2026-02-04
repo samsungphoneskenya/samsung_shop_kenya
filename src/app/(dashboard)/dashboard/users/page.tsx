@@ -10,9 +10,10 @@ export const metadata = {
 export default async function UsersPage({
   searchParams,
 }: {
-  searchParams: { role?: string; search?: string };
+  searchParams: Promise<{ role?: string; search?: string }>;
 }) {
   await requireRole(["admin"]);
+  const { role, search } = await searchParams;
 
   const supabase = await createClient();
 
@@ -23,14 +24,12 @@ export default async function UsersPage({
     .order("created_at", { ascending: false });
 
   // Apply filters
-  if (searchParams.role) {
-    query = query.eq("role", searchParams.role);
+  if (role) {
+    query = query.eq("role", role);
   }
 
-  if (searchParams.search) {
-    query = query.or(
-      `email.ilike.%${searchParams.search}%,full_name.ilike.%${searchParams.search}%`
-    );
+  if (search) {
+    query = query.or(`email.ilike.%${search}%,full_name.ilike.%${search}%`);
   }
 
   const { data: users, error } = await query;
@@ -79,8 +78,8 @@ export default async function UsersPage({
 
       <UsersTable
         users={users || []}
-        currentRole={searchParams.role}
-        currentSearch={searchParams.search}
+        currentRole={role}
+        currentSearch={search}
       />
     </div>
   );
