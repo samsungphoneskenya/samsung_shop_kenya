@@ -5,17 +5,10 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
-type ProductImage = Database["public"]["Tables"]["product_images"]["Row"];
-type SEOMetadata = Database["public"]["Tables"]["seo_metadata"]["Row"];
-type ProductBase = Database["public"]["Tables"]["products"]["Row"];
-type ProductWithRelations = ProductBase & {
-  category?: { name: string } | null;
-  images?: ProductImage[];
-  seo_metadata?: SEOMetadata | SEOMetadata[] | null;
-};
+type Order = Database["public"]["Tables"]["orders"]["Row"];
 
-type ProductsTableProps = {
-  products: ProductWithRelations[];
+type OrdersTableProps = {
+  orders: Order[];
   totalCount: number;
   currentPage: number;
   totalPages: number;
@@ -23,14 +16,14 @@ type ProductsTableProps = {
   currentSearch?: string;
 };
 
-export function ProductsTable({
-  products,
+export function OrdersTable({
+  orders,
   totalCount,
   currentPage,
   totalPages,
   currentStatus,
   currentSearch,
-}: ProductsTableProps) {
+}: OrdersTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [search, setSearch] = useState(currentSearch || "");
@@ -42,8 +35,8 @@ export function ProductsTable({
     } else {
       params.set("status", status);
     }
-    params.delete("page"); // Reset to page 1
-    router.push(`/dashboard/products?${params.toString()}`);
+    params.delete("page");
+    router.push(`/dashboard/orders?${params.toString()}`);
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -54,23 +47,36 @@ export function ProductsTable({
     } else {
       params.delete("search");
     }
-    params.delete("page"); // Reset to page 1
-    router.push(`/dashboard/products?${params.toString()}`);
+    params.delete("page");
+    router.push(`/dashboard/orders?${params.toString()}`);
   };
 
   const handlePageChange = (page: number) => {
     const params = new URLSearchParams(searchParams);
     params.set("page", page.toString());
-    router.push(`/dashboard/products?${params.toString()}`);
+    router.push(`/dashboard/orders?${params.toString()}`);
   };
 
   const getStatusBadge = (status: string) => {
     const badges = {
-      published: "bg-green-100 text-green-800",
-      draft: "bg-yellow-100 text-yellow-800",
-      archived: "bg-gray-100 text-gray-800",
+      pending: "bg-yellow-100 text-yellow-800",
+      confirmed: "bg-blue-100 text-blue-800",
+      processing: "bg-indigo-100 text-indigo-800",
+      shipped: "bg-purple-100 text-purple-800",
+      delivered: "bg-green-100 text-green-800",
+      cancelled: "bg-red-100 text-red-800",
     };
-    return badges[status as keyof typeof badges] || badges.draft;
+    return badges[status as keyof typeof badges] || badges.pending;
+  };
+
+  const getPaymentBadge = (status: string) => {
+    const badges = {
+      pending: "bg-yellow-100 text-yellow-800",
+      paid: "bg-green-100 text-green-800",
+      failed: "bg-red-100 text-red-800",
+      refunded: "bg-gray-100 text-gray-800",
+    };
+    return badges[status as keyof typeof badges] || badges.pending;
   };
 
   return (
@@ -79,37 +85,20 @@ export function ProductsTable({
       <div className="mb-4 flex flex-col sm:flex-row gap-4">
         {/* Search */}
         <form onSubmit={handleSearch} className="flex-1">
-          <div className="relative">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search products..."
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm pl-10"
-            />
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg
-                className="h-5 w-5 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-            </div>
-          </div>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search orders, customer name, or phone..."
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          />
         </form>
 
-        {/* Status Filter */}
-        <div className="flex gap-2">
+        {/* Status Filters */}
+        <div className="flex gap-2 overflow-x-auto">
           <button
             onClick={() => handleStatusFilter("all")}
-            className={`px-4 py-2 text-sm font-medium rounded-md ${
+            className={`px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap ${
               !currentStatus
                 ? "bg-blue-600 text-white"
                 : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
@@ -118,34 +107,54 @@ export function ProductsTable({
             All
           </button>
           <button
-            onClick={() => handleStatusFilter("published")}
-            className={`px-4 py-2 text-sm font-medium rounded-md ${
-              currentStatus === "published"
-                ? "bg-blue-600 text-white"
+            onClick={() => handleStatusFilter("pending")}
+            className={`px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap ${
+              currentStatus === "pending"
+                ? "bg-yellow-600 text-white"
                 : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
             }`}
           >
-            Published
+            Pending
           </button>
           <button
-            onClick={() => handleStatusFilter("draft")}
-            className={`px-4 py-2 text-sm font-medium rounded-md ${
-              currentStatus === "draft"
+            onClick={() => handleStatusFilter("confirmed")}
+            className={`px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap ${
+              currentStatus === "confirmed"
                 ? "bg-blue-600 text-white"
                 : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
             }`}
           >
-            Draft
+            Confirmed
           </button>
           <button
-            onClick={() => handleStatusFilter("archived")}
-            className={`px-4 py-2 text-sm font-medium rounded-md ${
-              currentStatus === "archived"
-                ? "bg-blue-600 text-white"
+            onClick={() => handleStatusFilter("processing")}
+            className={`px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap ${
+              currentStatus === "processing"
+                ? "bg-indigo-600 text-white"
                 : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
             }`}
           >
-            Archived
+            Processing
+          </button>
+          <button
+            onClick={() => handleStatusFilter("shipped")}
+            className={`px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap ${
+              currentStatus === "shipped"
+                ? "bg-purple-600 text-white"
+                : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+            }`}
+          >
+            Shipped
+          </button>
+          <button
+            onClick={() => handleStatusFilter("delivered")}
+            className={`px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap ${
+              currentStatus === "delivered"
+                ? "bg-green-600 text-white"
+                : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+            }`}
+          >
+            Delivered
           </button>
         </div>
       </div>
@@ -158,19 +167,22 @@ export function ProductsTable({
               <thead className="bg-gray-50">
                 <tr>
                   <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
-                    Product
+                    Order
+                  </th>
+                  <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                    Customer
                   </th>
                   <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                     Status
                   </th>
                   <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    Category
+                    Payment
                   </th>
                   <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    Price
+                    Total
                   </th>
                   <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    Stock
+                    Date
                   </th>
                   <th className="relative py-3.5 pl-3 pr-4 sm:pr-6">
                     <span className="sr-only">Actions</span>
@@ -178,58 +190,61 @@ export function ProductsTable({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
-                {products.length === 0 ? (
+                {orders.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       className="py-12 text-center text-sm text-gray-500"
                     >
-                      No products found. Create your first product to get
-                      started!
+                      No orders found.
                     </td>
                   </tr>
                 ) : (
-                  products.map((product) => (
-                    <tr key={product.id}>
+                  orders.map((order) => (
+                    <tr key={order.id} className="hover:bg-gray-50">
                       <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
-                        <div className="flex items-center">
-                          <div>
-                            <div className="font-medium text-gray-900">
-                              {product.title}
-                            </div>
-                            <div className="text-gray-500">{product.slug}</div>
-                          </div>
+                        <div className="font-medium text-gray-900">
+                          {order.order_number}
+                        </div>
+                      </td>
+                      <td className="px-3 py-4 text-sm">
+                        <div className="text-gray-900">
+                          {order.customer_name}
+                        </div>
+                        <div className="text-gray-500">
+                          {order.customer_phone}
                         </div>
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm">
                         <span
                           className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getStatusBadge(
-                            product.status
+                            order.status
                           )}`}
                         >
-                          {product.status}
+                          {order.status}
                         </span>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {product.category?.name || "-"}
+                      <td className="whitespace-nowrap px-3 py-4 text-sm">
+                        <span
+                          className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
+                            order.payment_status &&
+                            getPaymentBadge(order.payment_status)
+                          }`}
+                        >
+                          {order.payment_status}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
+                        KSh {order.total.toLocaleString()}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        Ksh. {product.price.toFixed(0)}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {product.quantity}
+                        {order.created_at &&
+                          new Date(order.created_at).toLocaleDateString()}
                       </td>
                       <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                         <Link
-                          href={`/dashboard/products/${product.id}`}
-                          className="text-blue-600 hover:text-blue-900 mr-4"
-                        >
-                          Edit
-                        </Link>
-                        <Link
-                          href={`/products/${product.slug}`}
-                          target="_blank"
-                          className="text-gray-600 hover:text-gray-900"
+                          href={`/dashboard/orders/${order.id}`}
+                          className="text-blue-600 hover:text-blue-900"
                         >
                           View
                         </Link>
@@ -250,14 +265,14 @@ export function ProductsTable({
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
               Previous
             </button>
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
               Next
             </button>
@@ -281,29 +296,14 @@ export function ProductsTable({
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="relative inline-flex items-center rounded-l-md border border-gray-300 bg-white px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="relative inline-flex items-center rounded-l-md border border-gray-300 bg-white px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
                 >
                   Previous
                 </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (page) => (
-                    <button
-                      key={page}
-                      onClick={() => handlePageChange(page)}
-                      className={`relative inline-flex items-center border px-4 py-2 text-sm font-medium ${
-                        page === currentPage
-                          ? "z-10 bg-blue-600 border-blue-600 text-white"
-                          : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  )
-                )}
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className="relative inline-flex items-center rounded-r-md border border-gray-300 bg-white px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="relative inline-flex items-center rounded-r-md border border-gray-300 bg-white px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
                 >
                   Next
                 </button>

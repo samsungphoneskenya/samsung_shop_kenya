@@ -1,0 +1,254 @@
+"use server";
+
+import { createClient } from "@/lib/db/client";
+import { getCurrentUser } from "@/lib/auth/session";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import {
+  CreateOrderInput,
+  UpdateOrderInput,
+  UpdateOrderStatusInput,
+  createOrderSchema,
+  updateOrderSchema,
+  updateOrderStatusSchema,
+} from "../validators/order.schema";
+
+type ActionResult = {
+  error?: string;
+  success?: boolean;
+  orderId?: string;
+  orderNumber?: string;
+};
+
+/**
+ * Create a new order (public - from checkout)
+ */
+export async function createOrder(
+  data: CreateOrderInput
+): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  try {
+    // Validate input
+    const validated = createOrderSchema.parse(data);
+
+    // Create order
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .insert({
+        order_number: validated.order_number,
+        customer_name: validated.customer_name,
+        customer_phone: validated.customer_phone,
+        customer_email: validated.customer_email || null,
+        delivery_location: validated.delivery_location,
+        delivery_lat: validated.delivery_lat || null,
+        delivery_lng: validated.delivery_lng || null,
+        delivery_place_id: validated.delivery_place_id || null,
+        delivery_notes: validated.delivery_notes || null,
+        subtotal: validated.subtotal,
+        tax: validated.tax,
+        shipping_fee: validated.shipping_fee,
+        total: validated.total,
+        payment_method: validated.payment_method,
+        status: "pending",
+        payment_status: "pending",
+      })
+      .select()
+      .single();
+
+    if (orderError) throw orderError;
+
+    // Create order items
+    const orderItems = validated.items.map((item) => ({
+      order_id: order.id,
+      product_id: item.product_id,
+      product_title: item.product_title,
+      product_slug: item.product_slug,
+      product_image: item.product_image || null,
+      product_sku: item.product_sku || null,
+      unit_price: item.unit_price,
+      quantity: item.quantity,
+      subtotal: item.subtotal,
+    }));
+
+    const { error: itemsError } = await supabase
+      .from("order_items")
+      .insert(orderItems);
+
+    if (itemsError) throw itemsError;
+
+    // Update product quantities
+    for (const item of validated.items) {
+      await supabase.rpc("decrement_product_quantity", {
+        product_id: item.product_id,
+        quantity_to_remove: item.quantity,
+      });
+    }
+
+    return {
+      success: true,
+      orderId: order.id,
+      orderNumber: order.order_number,
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    console.error("Create order error:", error);
+    return {
+      error: error.message || "Failed to create order",
+    };
+  }
+}
+
+/**
+ * Update order status (admin only)
+ */
+export async function updateOrderStatus(
+  orderId: string,
+  data: UpdateOrderStatusInput
+): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { error: "Unauthorized" };
+  }
+
+  const supabase = await createClient();
+
+  try {
+    const validated = updateOrderStatusSchema.parse(data);
+
+    const { error } = await supabase
+      .from("orders")
+      .update({ status: validated.status })
+      .eq("id", orderId);
+
+    if (error) throw error;
+
+    // Add status history entry
+    if (validated.notes) {
+      await supabase.from("order_status_history").insert({
+        order_id: orderId,
+        status: validated.status,
+        notes: validated.notes,
+        created_by: user.id,
+      });
+    }
+
+    revalidatePath("/dashboard/orders");
+    revalidatePath(`/dashboard/orders/${orderId}`);
+
+    return { success: true };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    console.error("Update order status error:", error);
+    return {
+      error: error.message || "Failed to update order status",
+    };
+  }
+}
+
+/**
+ * Update order details (admin only)
+ */
+export async function updateOrder(
+  orderId: string,
+  data: UpdateOrderInput
+): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { error: "Unauthorized" };
+  }
+
+  const supabase = await createClient();
+
+  try {
+    const validated = updateOrderSchema.parse(data);
+
+    const { error } = await supabase
+      .from("orders")
+      .update(validated)
+      .eq("id", orderId);
+
+    if (error) throw error;
+
+    revalidatePath("/dashboard/orders");
+    revalidatePath(`/dashboard/orders/${orderId}`);
+
+    return { success: true };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    console.error("Update order error:", error);
+    return {
+      error: error.message || "Failed to update order",
+    };
+  }
+}
+
+/**
+ * Cancel order
+ */
+export async function cancelOrder(orderId: string): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { error: "Unauthorized" };
+  }
+
+  const supabase = await createClient();
+
+  try {
+    // Get order items to restore quantities
+    const { data: items } = await supabase
+      .from("order_items")
+      .select("product_id, quantity")
+      .eq("order_id", orderId);
+
+    // Update order status
+    const { error } = await supabase
+      .from("orders")
+      .update({ status: "cancelled" })
+      .eq("id", orderId);
+
+    if (error) throw error;
+
+    // Restore product quantities
+    if (items) {
+      for (const item of items) {
+        await supabase.rpc("increment_product_quantity", {
+          product_id: item.product_id,
+          quantity_to_add: item.quantity,
+        });
+      }
+    }
+
+    revalidatePath("/dashboard/orders");
+    revalidatePath(`/dashboard/orders/${orderId}`);
+
+    return { success: true };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    console.error("Cancel order error:", error);
+    return {
+      error: error.message || "Failed to cancel order",
+    };
+  }
+}
+
+/**
+ * Delete order (admin only - permanent)
+ */
+export async function deleteOrder(orderId: string) {
+  const user = await getCurrentUser();
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("orders").delete().eq("id", orderId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/dashboard/orders");
+  redirect("/dashboard/orders");
+}

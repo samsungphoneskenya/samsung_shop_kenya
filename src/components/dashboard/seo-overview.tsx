@@ -1,9 +1,11 @@
 "use client";
 
-import { Database } from "@/types/database.types";
-
-type ProductBase = Database["public"]["Tables"]["products"]["Row"];
-type PageBase = Database["public"]["Tables"]["products"]["Row"];
+type SeoProductPageTypes = {
+  id: string;
+  title: string;
+  slug: string;
+  status: string;
+};
 
 type SEOOverviewProps = {
   stats: {
@@ -14,8 +16,8 @@ type SEOOverviewProps = {
     avgReadabilityScore: number;
     avgSeoScore: number;
   };
-  products: ProductBase[];
-  pages: PageBase[];
+  products: SeoProductPageTypes[];
+  pages: SeoProductPageTypes[];
 };
 
 export function SEOOverview({ stats, products, pages }: SEOOverviewProps) {
