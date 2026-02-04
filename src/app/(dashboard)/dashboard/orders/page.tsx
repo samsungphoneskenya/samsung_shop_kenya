@@ -10,12 +10,13 @@ export const metadata = {
 export default async function OrdersPage({
   searchParams,
 }: {
-  searchParams: { status?: string; search?: string; page?: string };
+  searchParams: Promise<{ status?: string; search?: string; page?: string }>;
 }) {
   await requireRole(["admin", "editor"]);
+  const { status, search, page: searchParamsPage } = await searchParams;
 
   const supabase = await createClient();
-  const page = parseInt(searchParams.page || "1");
+  const page = parseInt(searchParamsPage || "1");
   const limit = 20;
   const offset = (page - 1) * limit;
 
@@ -27,13 +28,13 @@ export default async function OrdersPage({
     .range(offset, offset + limit - 1);
 
   // Apply filters
-  if (searchParams.status) {
-    query = query.eq("status", searchParams.status);
+  if (status) {
+    query = query.eq("status", status);
   }
 
-  if (searchParams.search) {
+  if (search) {
     query = query.or(
-      `order_number.ilike.%${searchParams.search}%,customer_name.ilike.%${searchParams.search}%,customer_phone.ilike.%${searchParams.search}%`
+      `order_number.ilike.%${search}%,customer_name.ilike.%${search}%,customer_phone.ilike.%${search}%`
     );
   }
 
@@ -80,8 +81,8 @@ export default async function OrdersPage({
         totalCount={count || 0}
         currentPage={page}
         totalPages={totalPages}
-        currentStatus={searchParams.status}
-        currentSearch={searchParams.search}
+        currentStatus={status}
+        currentSearch={search}
       />
     </div>
   );
