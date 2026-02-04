@@ -10,6 +10,15 @@ export const productInsertSchema = z.object({
   description: z.string().nullable().optional(),
   price: z.number().positive("Price must be positive"),
   status: z.enum(["draft", "published"]).default("draft"),
+  category_id: z.string().uuid().nullable().optional(),
+  sku: z.string().nullable().optional(),
+  barcode: z.string().nullable().optional(),
+  compare_at_price: z.number().nullable().optional(),
+  cost_price: z.number().nullable().optional(),
+  created_by: z.string().nullable().optional(),
+  featured: z.boolean().nullable().optional(),
+  quantity: z.number().nullable().optional(),
+  updated_by: z.string().nullable().optional(),
 });
 
 export const productUpdateSchema = productInsertSchema.partial();
