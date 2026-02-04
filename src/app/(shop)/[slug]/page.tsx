@@ -4,18 +4,19 @@ import { Metadata } from "next";
 import Link from "next/link";
 
 type PageProps = {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 };
 
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const supabase = await createClient();
+  const { slug } = await params;
 
   const { data: page } = await supabase
     .from("pages")
     .select("*")
-    .eq("slug", params.slug)
+    .eq("slug", slug)
     .eq("status", "published")
     .single();
 
@@ -42,11 +43,12 @@ export async function generateMetadata({
 
 export default async function PublicPage({ params }: PageProps) {
   const supabase = await createClient();
+  const { slug } = await params;
 
   const { data: page, error } = await supabase
     .from("pages")
     .select("*, seo_metadata(*)")
-    .eq("slug", params.slug)
+    .eq("slug", slug)
     .eq("status", "published")
     .single();
 
