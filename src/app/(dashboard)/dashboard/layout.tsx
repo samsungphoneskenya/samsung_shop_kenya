@@ -1,6 +1,7 @@
 import { requireAuth, getCurrentUserProfile } from "@/lib/auth/session";
 import { logout } from "@/lib/auth/actions";
 import Link from "next/link";
+import Image from "next/image";
 
 export default async function DashboardLayout({
   children,
@@ -19,9 +20,15 @@ export default async function DashboardLayout({
           <div className="flex justify-between h-16">
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
-                <h1 className="text-xl font-bold text-gray-900">
-                  E-Commerce CMS
-                </h1>
+                <Link href="/" className="flex items-center">
+                  <Image
+                    src="/images/logo.png"
+                    alt="Samsung Phones Logo"
+                    width={600}
+                    height={500}
+                    className="h-12 w-auto"
+                  />
+                </Link>
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                 <Link
