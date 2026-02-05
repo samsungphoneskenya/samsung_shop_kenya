@@ -12,18 +12,17 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { searchProducts } from "@/lib/actions/search-actions";
-
-type SearchResult = {
-  id: string;
-  title: string;
-  slug: string;
-  price: number;
-  sale_price?: number | null;
-  image?: string;
-};
+import {
+  searchProducts,
+  type SearchResultProduct,
+} from "@/lib/actions/search-actions";
+import {
+  NAV_TOP_LINKS,
+  NAV_ACCESSORIES_LINKS,
+} from "@/lib/constants/nav";
 
 export default function Header() {
   const { getCartCount, getCartTotal } = useCart();
@@ -31,8 +30,9 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResultProduct[]>([]);
   const [showResults, setShowResults] = useState(false);
+  const router = useRouter();
   const [showAccessoriesMenu, setShowAccessoriesMenu] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const mobileSearchRef = useRef<HTMLDivElement>(null);
@@ -106,26 +106,30 @@ export default function Header() {
                 className="flex-1 max-w-2xl mx-8 hidden lg:block"
                 ref={searchRef}
               >
-                <div className="relative flex">
-                  <select className="px-4 py-3 border border-r-0 border-gray-300 rounded-l-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-sm font-medium text-gray-700">
-                    <option>All Categories</option>
-                    <option>Phones</option>
-                    <option>Tablets</option>
-                    <option>Wearables</option>
-                    <option>Accessories</option>
-                    <option>Audio</option>
-                  </select>
+                <form
+                  className="relative flex"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    setShowResults(false);
+                    const q = searchQuery.trim();
+                    if (q) router.push(`/shop?q=${encodeURIComponent(q)}`);
+                  }}
+                >
                   <input
-                    type="text"
+                    type="search"
                     placeholder="Search for products"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onFocus={() =>
                       searchQuery.length >= 2 && setShowResults(true)
                     }
-                    className="flex-1 px-4 py-3 border border-l-0 border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-l-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    aria-label="Search products"
                   />
-                  <button className="px-6 bg-black hover:bg-gray-800 text-white font-semibold rounded-r-xl transition-colors">
+                  <button
+                    type="submit"
+                    className="px-6 bg-black hover:bg-gray-800 text-white font-semibold rounded-r-xl transition-colors"
+                  >
                     SEARCH
                   </button>
 
@@ -144,13 +148,12 @@ export default function Header() {
                         >
                           <Image
                             src={
-                              product.image ||
-                              "/images/products/placeholder.jpg"
+                              product.featured_image || "/images/logo.png"
                             }
                             alt={product.title}
-                            width={100}
-                            height={100}
-                            className="w-12 h-12 object-contain rounded-lg bg-gray-50"
+                            width={48}
+                            height={48}
+                            className="w-12 h-12 object-contain rounded-lg bg-gray-50 shrink-0"
                           />
                           <div className="flex-1 min-w-0">
                             <h4 className="text-sm font-semibold text-gray-900 truncate">
@@ -159,7 +162,10 @@ export default function Header() {
                             <p className="text-sm text-blue-600 font-semibold">
                               KES{" "}
                               {(
-                                product.sale_price || product.price
+                                product.compare_at_price &&
+                                product.compare_at_price > product.price
+                                  ? product.price
+                                  : product.price
                               ).toLocaleString()}
                             </p>
                           </div>
@@ -178,7 +184,7 @@ export default function Header() {
                         </p>
                       </div>
                     )}
-                </div>
+                </form>
               </div>
 
               {/* Right Icons */}
@@ -255,62 +261,19 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Bottom Bar - Navigation Menu */}
+        {/* Bottom Bar - Navigation Menu (all links use /shop?category=<slug>) */}
         <div className="hidden lg:block bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <nav className="flex items-center space-x-8 h-12">
-              {/* Galaxy Series */}
-              <Link
-                href="/shop/phones/galaxy-s-series"
-                className="text-gray-900 hover:text-blue-600 font-medium transition-colors"
-              >
-                Galaxy S Series
-              </Link>
-
-              <Link
-                href="/shop/phones/galaxy-a-series"
-                className="text-gray-900 hover:text-blue-600 font-medium transition-colors"
-              >
-                Galaxy A Series
-              </Link>
-
-              <Link
-                href="/shop/phones/galaxy-m-series"
-                className="text-gray-900 hover:text-blue-600 font-medium transition-colors"
-              >
-                Galaxy M Series
-              </Link>
-
-              {/* Foldable Phones */}
-              <Link
-                href="/shop/phones/foldable-phones"
-                className="text-gray-900 hover:text-blue-600 font-medium transition-colors"
-              >
-                Foldable Phones
-              </Link>
-
-              {/* Galaxy Tab Series */}
-              <Link
-                href="/shop/tablets/galaxy-tab-a"
-                className="text-gray-900 hover:text-blue-600 font-medium transition-colors"
-              >
-                Galaxy Tab A
-              </Link>
-
-              <Link
-                href="/shop/tablets/galaxy-tab-s"
-                className="text-gray-900 hover:text-blue-600 font-medium transition-colors"
-              >
-                Galaxy Tab S
-              </Link>
-
-              <Link
-                href="/shop?category=watches"
-                className="text-gray-900 hover:text-blue-600 font-medium transition-colors"
-              >
-                Wearables
-              </Link>
-
+            <nav className="flex items-center flex-wrap gap-x-6 gap-y-2 h-12">
+              {NAV_TOP_LINKS.map((item) => (
+                <Link
+                  key={item.slug}
+                  href={`/shop?category=${encodeURIComponent(item.slug)}`}
+                  className="text-gray-900 hover:text-blue-600 font-medium transition-colors whitespace-nowrap"
+                >
+                  {item.label}
+                </Link>
+              ))}
               {/* Accessories Dropdown */}
               <div
                 className="relative"
@@ -318,7 +281,10 @@ export default function Header() {
                 onMouseEnter={() => setShowAccessoriesMenu(true)}
                 onMouseLeave={() => setShowAccessoriesMenu(false)}
               >
-                <button className="flex items-center space-x-1 text-gray-900 hover:text-blue-600 font-medium transition-colors">
+                <button
+                  type="button"
+                  className="flex items-center space-x-1 text-gray-900 hover:text-blue-600 font-medium transition-colors"
+                >
                   <span>Accessories</span>
                   <ChevronDown
                     className={`h-4 w-4 transition-transform ${
@@ -326,70 +292,62 @@ export default function Header() {
                     }`}
                   />
                 </button>
-
                 {showAccessoriesMenu && (
-                  <div className="absolute left-0 top-full pt-2 w-48 z-50">
+                  <div className="absolute left-0 top-full pt-2 w-52 z-50">
                     <div className="bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden py-2">
-                      <Link
-                        href="/shop?category=accessories"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-black transition-colors"
-                      >
-                        All Accessories
-                      </Link>
-                      <Link
-                        href="/shop?category=buds"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-black transition-colors"
-                      >
-                        Audio
-                      </Link>
-                      <Link
-                        href="/shop?category=cases"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-black transition-colors"
-                      >
-                        Cases
-                      </Link>
-                      <Link
-                        href="/shop?category=chargers"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-black transition-colors"
-                      >
-                        Chargers
-                      </Link>
-                      <Link
-                        href="/shop?category=screen-protectors"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-black transition-colors"
-                      >
-                        Screen Protectors
-                      </Link>
-                      <Link
-                        href="/shop?category=powerbank"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-black transition-colors"
-                      >
-                        Power Banks
-                      </Link>
+                      {NAV_ACCESSORIES_LINKS.map((item) => (
+                        <Link
+                          key={item.slug}
+                          href={`/shop?category=${encodeURIComponent(item.slug)}`}
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-black transition-colors"
+                        >
+                          {item.label}
+                        </Link>
+                      ))}
                     </div>
                   </div>
                 )}
               </div>
+              <Link
+                href="/shop?category=galaxy-buds"
+                className="text-gray-900 hover:text-blue-600 font-medium transition-colors whitespace-nowrap"
+              >
+                Audio
+              </Link>
             </nav>
           </div>
         </div>
 
-        {/* Mobile Search - Same as before but with working search */}
+        {/* Mobile Search */}
         {mobileSearchOpen && (
           <div className="lg:hidden border-t border-gray-200 bg-white">
             <div className="px-4 py-4" ref={mobileSearchRef}>
-              <div className="relative">
+              <form
+                className="relative"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setShowResults(false);
+                  const q = searchQuery.trim();
+                  if (q) {
+                    router.push(`/shop?q=${encodeURIComponent(q)}`);
+                    setMobileSearchOpen(false);
+                  }
+                }}
+              >
                 <input
-                  type="text"
+                  type="search"
                   placeholder="Search for products"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() =>
                     searchQuery.length >= 2 && setShowResults(true)
                   }
-                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 pr-24 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <button className="absolute right-2 top-2 px-4 py-1.5 bg-black hover:bg-gray-800 text-white text-sm font-semibold rounded-lg transition-colors">
+                <button
+                  type="submit"
+                  className="absolute right-2 top-2 px-4 py-1.5 bg-black hover:bg-gray-800 text-white text-sm font-semibold rounded-lg transition-colors"
+                >
                   Search
                 </button>
 
@@ -409,22 +367,19 @@ export default function Header() {
                       >
                         <Image
                           src={
-                            product.image || "/images/products/placeholder.jpg"
+                            product.featured_image || "/images/logo.png"
                           }
                           alt={product.title}
-                          width={100}
-                          height={100}
-                          className="w-12 h-12 object-contain rounded-lg bg-gray-50"
+                          width={48}
+                          height={48}
+                          className="w-12 h-12 object-contain rounded-lg bg-gray-50 shrink-0"
                         />
                         <div className="flex-1 min-w-0">
                           <h4 className="text-sm font-semibold text-gray-900 truncate">
                             {product.title}
                           </h4>
                           <p className="text-sm text-blue-600 font-semibold">
-                            KES{" "}
-                            {(
-                              product.sale_price || product.price
-                            ).toLocaleString()}
+                            KES {product.price.toLocaleString()}
                           </p>
                         </div>
                       </Link>
@@ -432,7 +387,6 @@ export default function Header() {
                   </div>
                 )}
 
-                {/* No Results */}
                 {showResults &&
                   searchQuery.length >= 2 &&
                   searchResults.length === 0 && (
@@ -442,15 +396,15 @@ export default function Header() {
                       </p>
                     </div>
                   )}
-              </div>
+              </form>
             </div>
           </div>
         )}
 
-        {/* Mobile Menu - keeping your existing structure */}
+        {/* Mobile Menu (all shop links use /shop?category=<slug>) */}
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-gray-200 bg-white">
-            <div className="px-4 py-4 space-y-3">
+            <div className="px-4 py-4 space-y-1">
               <Link
                 href="/"
                 className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
@@ -463,53 +417,29 @@ export default function Header() {
               >
                 Shop
               </Link>
+              {NAV_TOP_LINKS.map((item) => (
+                <Link
+                  key={item.slug}
+                  href={`/shop?category=${encodeURIComponent(item.slug)}`}
+                  className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
+                >
+                  {item.label}
+                </Link>
+              ))}
+              {NAV_ACCESSORIES_LINKS.map((item) => (
+                <Link
+                  key={item.slug}
+                  href={`/shop?category=${encodeURIComponent(item.slug)}`}
+                  className="block py-2 px-4 pl-6 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  {item.label}
+                </Link>
+              ))}
               <Link
-                href="/shop/phones/galaxy-s-series"
+                href="/shop?category=galaxy-buds"
                 className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
               >
-                Galaxy S Series
-              </Link>
-              <Link
-                href="/shop/phones/galaxy-a-series"
-                className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
-              >
-                Galaxy A Series
-              </Link>
-              <Link
-                href="/shop/phones/galaxy-m-series"
-                className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
-              >
-                Galaxy M Series
-              </Link>
-              <Link
-                href="/shop/phones/foldable-phones"
-                className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
-              >
-                Foldable Phones
-              </Link>
-              <Link
-                href="/shop/tablets/galaxy-tab-a"
-                className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
-              >
-                Galaxy Tab A
-              </Link>
-              <Link
-                href="/shop/tablets/galaxy-tab-s"
-                className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
-              >
-                Galaxy Tab S
-              </Link>
-              <Link
-                href="/shop?category=watches"
-                className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
-              >
-                Wearables
-              </Link>
-              <Link
-                href="/shop?category=accessories"
-                className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
-              >
-                Accessories
+                Audio
               </Link>
               <Link
                 href="/about-us"
@@ -518,7 +448,7 @@ export default function Header() {
                 About
               </Link>
               <Link
-                href="/contact"
+                href="/contact-us"
                 className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
               >
                 Contact
