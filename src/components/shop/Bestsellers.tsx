@@ -73,8 +73,8 @@ export default function Bestsellers() {
                   <Image
                     src={product.image}
                     alt={product.name}
-                    height={100}
-                    width={100}
+                    width={1200}
+                    height={1200}
                     className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                   />
                   <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 flex items-center space-x-1">

@@ -85,8 +85,8 @@ export default function NewArrivals() {
                     <Image
                       src={product.image}
                       alt={product.name}
-                      width={100}
-                      height={100}
+                      width={1200}
+                      height={1200}
                       className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>

@@ -10,19 +10,28 @@ import {
   User,
   ChevronDown,
 } from "lucide-react";
-import { Database } from "@/types/database.types";
 import Link from "next/link";
 import Image from "next/image";
+import { useCart } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { searchProducts } from "@/lib/actions/search-actions";
 
-type Product = Database["public"]["Tables"]["products"]["Row"];
+type SearchResult = {
+  id: string;
+  title: string;
+  slug: string;
+  price: number;
+  sale_price?: number | null;
+  image?: string;
+};
 
 export default function Header() {
-  // const { getCartCount, getCartTotal } = useCart();
-  // const { user, profile } = useAuth();
+  const { getCartCount, getCartTotal } = useCart();
+  const { user, profile } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [showAccessoriesMenu, setShowAccessoriesMenu] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -51,29 +60,23 @@ export default function Header() {
 
   // Search products
   useEffect(() => {
-    const searchProducts = async () => {
+    const performSearch = async () => {
       if (searchQuery.trim().length < 2) {
         setSearchResults([]);
         return;
       }
 
       try {
-        console.log("search functionality coming soon");
-        // const { data, error } = await supabase
-        //   .from("products")
-        //   .select("*")
-        //   .or(`name.ilike.%${searchQuery}%,category.ilike.%${searchQuery}%`)
-        //   .limit(5);
-
-        // if (error) throw error;
-        // setSearchResults(data || []);
-        // setShowResults(true);
+        const results = await searchProducts(searchQuery);
+        setSearchResults(results);
+        setShowResults(true);
       } catch (error) {
         console.error("Error searching products:", error);
+        setSearchResults([]);
       }
     };
 
-    const debounce = setTimeout(searchProducts, 300);
+    const debounce = setTimeout(performSearch, 300);
     return () => clearTimeout(debounce);
   }, [searchQuery]);
 
@@ -91,8 +94,8 @@ export default function Header() {
                   <Image
                     src="/images/logo.png"
                     alt="Samsung Phones Logo"
-                    width={100}
-                    height={100}
+                    width={600}
+                    height={500}
                     className="h-12 w-auto"
                   />
                 </Link>
@@ -132,7 +135,7 @@ export default function Header() {
                       {searchResults.map((product) => (
                         <Link
                           key={product.id}
-                          href={`/product/${product.id}`}
+                          href={`/product/${product.slug}`}
                           onClick={() => {
                             setShowResults(false);
                             setSearchQuery("");
@@ -140,21 +143,24 @@ export default function Header() {
                           className="flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
                         >
                           <Image
-                            src={"/images/products/s25.jpg"}
-                            alt={"product.name"}
+                            src={
+                              product.image ||
+                              "/images/products/placeholder.jpg"
+                            }
+                            alt={product.title}
                             width={100}
                             height={100}
                             className="w-12 h-12 object-contain rounded-lg bg-gray-50"
                           />
                           <div className="flex-1 min-w-0">
                             <h4 className="text-sm font-semibold text-gray-900 truncate">
-                              {"product.name"}
+                              {product.title}
                             </h4>
                             <p className="text-sm text-blue-600 font-semibold">
-                              KES 00
-                              {/* {parseFloat(
-                                product.price.toString()
-                              ).toLocaleString()} */}
+                              KES{" "}
+                              {(
+                                product.sale_price || product.price
+                              ).toLocaleString()}
                             </p>
                           </div>
                         </Link>
@@ -187,11 +193,11 @@ export default function Header() {
                   </div>
                 </div>
 
-                {/* <Link
+                <Link
                   href={
                     user
                       ? profile?.role === "admin"
-                        ? "/admin"
+                        ? "/dashboard"
                         : "/account"
                       : "/login"
                   }
@@ -206,7 +212,7 @@ export default function Header() {
                         : "Sign In"}
                     </div>
                   </div>
-                </Link> */}
+                </Link>
 
                 {/* Mobile Search Icon */}
                 <button
@@ -224,15 +230,14 @@ export default function Header() {
                   <div className="hidden lg:block text-sm">
                     <div className="text-xs text-gray-500">My Cart</div>
                     <div className="font-semibold text-gray-900">
-                      KSh 1200
-                      {/* {getCartTotal().toLocaleString()} */}
+                      KSh {getCartTotal().toLocaleString()}
                     </div>
                   </div>
-                  {/* {getCartCount() > 0 && (
+                  {getCartCount() > 0 && (
                     <span className="absolute -top-2 -right-2 bg-black text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
                       {getCartCount()}
                     </span>
-                  )} */}
+                  )}
                 </Link>
 
                 <button
@@ -369,7 +374,7 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Mobile Search */}
+        {/* Mobile Search - Same as before but with working search */}
         {mobileSearchOpen && (
           <div className="lg:hidden border-t border-gray-200 bg-white">
             <div className="px-4 py-4" ref={mobileSearchRef}>
@@ -394,7 +399,7 @@ export default function Header() {
                     {searchResults.map((product) => (
                       <Link
                         key={product.id}
-                        href={`/product/${product.id}`}
+                        href={`/product/${product.slug}`}
                         onClick={() => {
                           setShowResults(false);
                           setSearchQuery("");
@@ -403,21 +408,23 @@ export default function Header() {
                         className="flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
                       >
                         <Image
-                          src={"/images/products/s25.jpg"}
-                          alt={"product.name"}
+                          src={
+                            product.image || "/images/products/placeholder.jpg"
+                          }
+                          alt={product.title}
                           width={100}
                           height={100}
                           className="w-12 h-12 object-contain rounded-lg bg-gray-50"
                         />
                         <div className="flex-1 min-w-0">
                           <h4 className="text-sm font-semibold text-gray-900 truncate">
-                            {"product.name"}
+                            {product.title}
                           </h4>
                           <p className="text-sm text-blue-600 font-semibold">
-                            KES 00
-                            {/* {parseFloat(
-                              product.price.toString()
-                            ).toLocaleString()} */}
+                            KES{" "}
+                            {(
+                              product.sale_price || product.price
+                            ).toLocaleString()}
                           </p>
                         </div>
                       </Link>
@@ -440,74 +447,10 @@ export default function Header() {
           </div>
         )}
 
-        {/* Mobile Menu */}
+        {/* Mobile Menu - keeping your existing structure */}
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-gray-200 bg-white">
             <div className="px-4 py-4 space-y-3">
-              {/* Search Bar Mobile */}
-              <div className="relative mb-4">
-                <input
-                  type="text"
-                  placeholder="Search for phones, accessories..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onFocus={() =>
-                    searchQuery.length >= 2 && setShowResults(true)
-                  }
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <Search className="absolute right-3 top-3 h-5 w-5 text-gray-400" />
-
-                {/* Search Results Dropdown Mobile */}
-                {showResults && searchResults.length > 0 && (
-                  <div className="absolute top-full mt-2 w-full bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden z-50">
-                    {searchResults.map((product) => (
-                      <Link
-                        key={product.id}
-                        href={`/product/${product.id}`}
-                        onClick={() => {
-                          setShowResults(false);
-                          setSearchQuery("");
-                          setMobileMenuOpen(false);
-                        }}
-                        className="flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
-                      >
-                        <Image
-                          src={"/images/products/s25.jpg"}
-                          alt={"product.name"}
-                          width={100}
-                          height={100}
-                          className="w-12 h-12 object-contain rounded-lg bg-gray-50"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-sm font-semibold text-gray-900 truncate">
-                            {"product.name"}
-                          </h4>
-                          <p className="text-sm text-blue-600 font-semibold">
-                            KES{" "}
-                            {parseFloat(
-                              product.price.toString()
-                            ).toLocaleString()}
-                          </p>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-
-                {/* No Results Mobile */}
-                {showResults &&
-                  searchQuery.length >= 2 &&
-                  searchResults.length === 0 && (
-                    <div className="absolute top-full mt-2 w-full bg-white rounded-xl shadow-lg border border-gray-200 p-4 z-50">
-                      <p className="text-sm text-gray-500 text-center">
-                        No products found
-                      </p>
-                    </div>
-                  )}
-              </div>
-
-              {/* Navigation Links */}
               <Link
                 href="/"
                 className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
@@ -569,25 +512,7 @@ export default function Header() {
                 Accessories
               </Link>
               <Link
-                href="/shop?category=buds"
-                className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors ml-4"
-              >
-                Audio
-              </Link>
-              <Link
-                href="/shop?category=cases"
-                className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors ml-4"
-              >
-                Cases
-              </Link>
-              <Link
-                href="/shop?category=chargers"
-                className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors ml-4"
-              >
-                Chargers
-              </Link>
-              <Link
-                href="/about"
+                href="/about-us"
                 className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
               >
                 About
@@ -598,18 +523,18 @@ export default function Header() {
               >
                 Contact
               </Link>
-              {/* <Link
+              <Link
                 href={
                   user
                     ? profile?.role === "admin"
-                      ? "/admin"
+                      ? "/dashboard"
                       : "/account"
                     : "/login"
                 }
                 className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
               >
                 {user ? "My Account" : "Sign In"}
-              </Link> */}
+              </Link>
             </div>
           </div>
         )}
