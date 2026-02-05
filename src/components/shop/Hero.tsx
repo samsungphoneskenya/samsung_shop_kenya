@@ -34,7 +34,7 @@ export default function Hero() {
                 <ArrowRight className="h-5 w-5" />
               </Link>
               <Link
-                href="/about"
+                href="/about-us"
                 className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-xl hover:border-black hover:bg-gray-50 transition-all font-semibold text-center"
               >
                 About Us
@@ -66,7 +66,8 @@ export default function Hero() {
                 <Image
                   src="/images/products/s25.jpg"
                   alt="Galaxy S25 Ultra"
-                  fill
+                  width={1200}
+                  height={1200}
                   className="w-full h-full object-cover"
                 />
               </div>
