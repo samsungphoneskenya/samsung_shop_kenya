@@ -30,29 +30,58 @@ export async function createProduct(
   const supabase = await createClient();
 
   try {
+    const isTruthy = (value: FormDataEntryValue | null) =>
+      value === "on" || value === "true" || value === "1";
+
     // Extract and validate data
+    const price = parseFloat(formData.get("price") as string);
+    const compareAt = formData.get("compare_at_price")
+      ? parseFloat(formData.get("compare_at_price") as string)
+      : null;
     const data = {
       title: formData.get("title") as string,
       slug: formData.get("slug") as string,
       description: (formData.get("description") as string) || null,
-      price: parseFloat(formData.get("price") as string),
-      compare_at_price: formData.get("compare_at_price")
-        ? parseFloat(formData.get("compare_at_price") as string)
-        : null,
+      short_description: (formData.get("short_description") as string) || null,
+      price,
+      compare_at_price: compareAt,
       cost_price: formData.get("cost_price")
         ? parseFloat(formData.get("cost_price") as string)
         : null,
       sku: (formData.get("sku") as string) || null,
-      barcode: (formData.get("barcode") as string) || null,
       quantity: parseInt(formData.get("quantity") as string) || 0,
+      low_stock_threshold:
+        parseInt(formData.get("low_stock_threshold") as string) || 5,
+      track_inventory: isTruthy(formData.get("track_inventory")),
+      allow_backorder: isTruthy(formData.get("allow_backorder")),
       category_id: (formData.get("category_id") as string) || null,
-      status: formData.get("status") as "draft" | "published" | "archived",
-      featured:
-        formData.get("featured") === "on" || formData.get("featured") === "true"
-          ? true
-          : false,
-      created_by: user.id,
-      updated_by: user.id,
+      status: formData.get("status") as
+        | "draft"
+        | "published"
+        | "archived"
+        | "out_of_stock",
+      visibility: (formData.get("visibility") as
+        | "visible"
+        | "hidden"
+        | "search_only"
+        | null) ?? null,
+      is_featured: isTruthy(formData.get("is_featured")),
+      is_bestseller: isTruthy(formData.get("is_bestseller")),
+      is_new_arrival: isTruthy(formData.get("is_new_arrival")),
+      on_sale:
+        isTruthy(formData.get("on_sale")) ||
+        (typeof compareAt === "number" && compareAt > price),
+      featured_image: (formData.get("featured_image") as string) || null,
+      meta_title: (formData.get("meta_title") as string) || null,
+      meta_description: (formData.get("meta_description") as string) || null,
+      meta_keywords: (formData.get("meta_keywords") as string)
+        ? (formData.get("meta_keywords") as string)
+            .split(",")
+            .map((k) => k.trim())
+            .filter(Boolean)
+        : null,
+      published_at:
+        formData.get("status") === "published" ? new Date().toISOString() : null,
     };
 
     // Validate
@@ -63,7 +92,7 @@ export async function createProduct(
       .from("products")
       .select("id")
       .eq("slug", validated.slug)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       return { error: "A product with this slug already exists" };
@@ -77,21 +106,6 @@ export async function createProduct(
       .single();
 
     if (error) throw error;
-
-    // Create SEO metadata if provided
-    const metaTitle = formData.get("meta_title") as string;
-    const metaDescription = formData.get("meta_description") as string;
-    const focusKeyword = formData.get("focus_keyword") as string;
-
-    if (metaTitle || metaDescription || focusKeyword) {
-      await supabase.from("seo_metadata").insert({
-        entity_type: "product",
-        entity_id: product.id,
-        meta_title: metaTitle || null,
-        meta_description: metaDescription || null,
-        focus_keyword: focusKeyword || null,
-      });
-    }
 
     revalidatePath("/dashboard/products");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -118,33 +132,64 @@ export async function updateProduct(
   }
 
   const supabase = await createClient();
-  console.log("formData", formData);
 
   try {
+    const isTruthy = (value: FormDataEntryValue | null) =>
+      value === "on" || value === "true" || value === "1";
+
     // Extract and validate data
+    const price = parseFloat(formData.get("price") as string);
+    const compareAt = formData.get("compare_at_price")
+      ? parseFloat(formData.get("compare_at_price") as string)
+      : null;
     const data = {
       title: formData.get("title") as string,
       slug: formData.get("slug") as string,
       description: (formData.get("description") as string) || null,
-      price: parseFloat(formData.get("price") as string),
-      compare_at_price: formData.get("compare_at_price")
-        ? parseFloat(formData.get("compare_at_price") as string)
-        : null,
+      short_description: (formData.get("short_description") as string) || null,
+      price,
+      compare_at_price: compareAt,
       cost_price: formData.get("cost_price")
         ? parseFloat(formData.get("cost_price") as string)
         : null,
       sku: (formData.get("sku") as string) || null,
-      barcode: (formData.get("barcode") as string) || null,
       quantity: parseInt(formData.get("quantity") as string) || 0,
+      low_stock_threshold:
+        parseInt(formData.get("low_stock_threshold") as string) || 5,
+      track_inventory: isTruthy(formData.get("track_inventory")),
+      allow_backorder: isTruthy(formData.get("allow_backorder")),
       category_id: (formData.get("category_id") as string) || null,
-      status: formData.get("status") as "draft" | "published" | "archived",
-      featured: formData.get("featured") === "on",
-      updated_by: user.id,
+      status: formData.get("status") as
+        | "draft"
+        | "published"
+        | "archived"
+        | "out_of_stock",
+      visibility: (formData.get("visibility") as
+        | "visible"
+        | "hidden"
+        | "search_only"
+        | null) ?? null,
+      is_featured: isTruthy(formData.get("is_featured")),
+      is_bestseller: isTruthy(formData.get("is_bestseller")),
+      is_new_arrival: isTruthy(formData.get("is_new_arrival")),
+      on_sale:
+        isTruthy(formData.get("on_sale")) ||
+        (typeof compareAt === "number" && compareAt > price),
+      featured_image: (formData.get("featured_image") as string) || null,
+      meta_title: (formData.get("meta_title") as string) || null,
+      meta_description: (formData.get("meta_description") as string) || null,
+      meta_keywords: (formData.get("meta_keywords") as string)
+        ? (formData.get("meta_keywords") as string)
+            .split(",")
+            .map((k) => k.trim())
+            .filter(Boolean)
+        : null,
+      published_at:
+        formData.get("status") === "published" ? new Date().toISOString() : null,
     };
 
     // Validate
     const validated = productUpdateSchema.parse(data);
-    console.log("validated", validated);
 
     // Check if slug is taken by another product
     const { data: existing } = await supabase
@@ -152,7 +197,7 @@ export async function updateProduct(
       .select("id")
       .eq("slug", validated.slug!)
       .neq("id", productId)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       return { error: "A product with this slug already exists" };
@@ -165,41 +210,6 @@ export async function updateProduct(
       .eq("id", productId);
 
     if (error) throw error;
-
-    // Update or create SEO metadata
-    const metaTitle = formData.get("meta_title") as string;
-    const metaDescription = formData.get("meta_description") as string;
-    const focusKeyword = formData.get("focus_keyword") as string;
-
-    if (metaTitle || metaDescription || focusKeyword) {
-      const { data: existingSeo } = await supabase
-        .from("seo_metadata")
-        .select("id")
-        .eq("entity_type", "product")
-        .eq("entity_id", productId)
-        .single();
-
-      if (existingSeo) {
-        // Update existing
-        await supabase
-          .from("seo_metadata")
-          .update({
-            meta_title: metaTitle || null,
-            meta_description: metaDescription || null,
-            focus_keyword: focusKeyword || null,
-          })
-          .eq("id", existingSeo.id);
-      } else {
-        // Create new
-        await supabase.from("seo_metadata").insert({
-          entity_type: "product",
-          entity_id: productId,
-          meta_title: metaTitle || null,
-          meta_description: metaDescription || null,
-          focus_keyword: focusKeyword || null,
-        });
-      }
-    }
 
     revalidatePath("/dashboard/products");
     revalidatePath(`/dashboard/products/${productId}`);
@@ -256,7 +266,10 @@ export async function toggleProductStatus(
 
   const { error } = await supabase
     .from("products")
-    .update({ status: newStatus, updated_by: user.id })
+    .update({
+      status: newStatus,
+      published_at: newStatus === "published" ? new Date().toISOString() : null,
+    })
     .eq("id", productId);
 
   if (error) {
