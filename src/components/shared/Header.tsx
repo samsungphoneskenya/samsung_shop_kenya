@@ -20,10 +20,7 @@ import {
   searchProducts,
   type SearchResultProduct,
 } from "@/lib/actions/search-actions";
-import {
-  NAV_TOP_LINKS,
-  NAV_ACCESSORIES_LINKS,
-} from "@/lib/constants/nav";
+import { NAV_TOP_LINKS, NAV_ACCESSORIES_LINKS } from "@/lib/constants/nav";
 
 export default function Header() {
   const { getCartCount, getCartTotal } = useCart();
@@ -124,7 +121,7 @@ export default function Header() {
                     onFocus={() =>
                       searchQuery.length >= 2 && setShowResults(true)
                     }
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-l-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-l-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
                     aria-label="Search products"
                   />
                   <button
@@ -148,9 +145,7 @@ export default function Header() {
                           className="flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
                         >
                           <SafeImage
-                            src={
-                              product.featured_image || "/images/logo.png"
-                            }
+                            src={product.featured_image || "/images/logo.png"}
                             alt={product.title}
                             width={48}
                             height={48}
@@ -162,11 +157,10 @@ export default function Header() {
                             </h4>
                             <p className="text-sm text-blue-600 font-semibold">
                               KES{" "}
-                              {(
-                                product.compare_at_price &&
-                                product.compare_at_price > product.price
-                                  ? product.price
-                                  : product.price
+                              {(product.compare_at_price &&
+                              product.compare_at_price > product.price
+                                ? product.price
+                                : product.price
                               ).toLocaleString()}
                             </p>
                           </div>
@@ -299,7 +293,9 @@ export default function Header() {
                       {NAV_ACCESSORIES_LINKS.map((item) => (
                         <Link
                           key={item.slug}
-                          href={`/shop?category=${encodeURIComponent(item.slug)}`}
+                          href={`/shop?category=${encodeURIComponent(
+                            item.slug
+                          )}`}
                           className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-black transition-colors"
                         >
                           {item.label}
@@ -367,9 +363,7 @@ export default function Header() {
                         className="flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
                       >
                         <SafeImage
-                          src={
-                            product.featured_image || "/images/logo.png"
-                          }
+                          src={product.featured_image || "/images/logo.png"}
                           alt={product.title}
                           width={48}
                           height={48}

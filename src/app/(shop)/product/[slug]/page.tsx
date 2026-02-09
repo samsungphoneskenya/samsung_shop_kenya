@@ -2,13 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SafeImage } from "@/components/shared/SafeImage";
 import { notFound } from "next/navigation";
-import {
-  Star,
-  ShoppingCart,
-  Truck,
-  Shield,
-  RefreshCw,
-} from "lucide-react";
+import { Star, ShoppingCart, Truck, Shield, RefreshCw } from "lucide-react";
 
 import Header from "@/components/shared/Header";
 import Footer from "@/components/shared/Footer";
@@ -18,7 +12,6 @@ import {
   getProductBySlug,
   getRelatedProducts,
 } from "@/lib/actions/storefront-actions";
-
 
 function buildSeoDescription(input: {
   meta_description: string | null;
@@ -90,7 +83,9 @@ export async function generateMetadata({
   };
 }
 
-export default async function ProductPage({ params }: {
+export default async function ProductPage({
+  params,
+}: {
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
@@ -150,7 +145,7 @@ export default async function ProductPage({ params }: {
           <div>
             <div className="relative bg-white rounded-3xl shadow-md overflow-hidden p-6 sm:p-8 mb-4">
               {product.on_sale && isOnSale && (
-                <div className="absolute left-6 top-6 inline-flex items-center rounded-full bg-rose-500 px-3 py-1 text-xs font-semibold text-white shadow-sm">
+                <div className="absolute left-6 top-6 inline-flex items-center rounded-full bg-rose-500 px-3 py-1 text-xs font-semibold text-white shadow-sm z-10">
                   Sale
                   {product.discount_percentage != null &&
                     product.discount_percentage > 0 && (
@@ -162,26 +157,26 @@ export default async function ProductPage({ params }: {
               )}
 
               {product.is_new_arrival && (
-                <div className="absolute right-6 top-6 inline-flex items-center rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white shadow-sm">
+                <div className="absolute right-6 top-6 inline-flex items-center rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white shadow-sm z-10">
                   New arrival
                 </div>
               )}
 
               {image && (
-                <div className="relative aspect-[4/3] w-full">
+                <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-gray-100">
                   <SafeImage
                     src={image}
                     alt={product.title}
                     fill
-                    sizes="(min-width: 1024px) 36rem, 100vw"
+                    sizes="(min-width: 1024px) 40rem, (min-width: 768px) 50vw, 100vw"
                     priority
-                    className="object-contain"
+                    className="object-cover transition-transform duration-300 hover:scale-105"
                   />
                 </div>
               )}
 
               {!image && (
-                <div className="flex h-80 items-center justify-center rounded-2xl bg-gray-100 text-gray-400 text-sm">
+                <div className="flex aspect-square items-center justify-center rounded-xl bg-gray-100 text-gray-400 text-sm">
                   No image available
                 </div>
               )}
@@ -192,14 +187,14 @@ export default async function ProductPage({ params }: {
                 {product.gallery_images.slice(0, 4).map((src, idx) => (
                   <div
                     key={src + idx}
-                    className="relative aspect-square overflow-hidden rounded-2xl bg-white shadow-sm"
+                    className="relative aspect-square overflow-hidden rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow cursor-pointer"
                   >
                     <SafeImage
                       src={src}
                       alt={`${product.title} thumbnail ${idx + 1}`}
                       fill
-                      sizes="120px"
-                      className="object-contain"
+                      sizes="(min-width: 1024px) 10rem, (min-width: 640px) 15vw, 20vw"
+                      className="object-cover"
                     />
                   </div>
                 ))}

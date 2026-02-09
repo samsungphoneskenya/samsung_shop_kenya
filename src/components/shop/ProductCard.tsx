@@ -11,9 +11,7 @@ const PLACEHOLDER_IMAGE = "/images/logo.png";
 
 function productImageUrl(product: StorefrontProduct): string {
   return (
-    product.featured_image ||
-    product.gallery_images?.[0] ||
-    PLACEHOLDER_IMAGE
+    product.featured_image || product.gallery_images?.[0] || PLACEHOLDER_IMAGE
   );
 }
 
@@ -63,8 +61,7 @@ export default function ProductCard({
 }: ProductCardProps) {
   const { addItem } = useCart();
   const imageUrl = productImageUrl(product);
-  const description =
-    product.short_description || product.description || "";
+  const description = product.short_description || product.description || "";
   const rating = product.avg_rating ?? 0;
   const reviewCount = product.review_count ?? 0;
   const showComparePrice =
@@ -72,21 +69,21 @@ export default function ProductCard({
     product.compare_at_price > product.price;
 
   const isCompact = variant === "compact";
-  const imageHeight = isCompact ? "h-56 sm:h-60" : "h-64 sm:h-72";
-  const padding = isCompact ? "p-4 sm:p-5" : "p-5 sm:p-6";
-  const titleSize = isCompact ? "text-base sm:text-lg" : "text-lg sm:text-xl";
+  const imageHeight = isCompact ? "h-48" : "h-56";
+  const padding = isCompact ? "p-3" : "p-4";
 
   return (
     <article
-      className="bg-white rounded-2xl sm:rounded-3xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 group border border-gray-100/80"
+      className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group border border-gray-100 flex flex-col h-full"
       itemScope
       itemType="https://schema.org/Product"
     >
       <Link
         href={`/product/${product.slug}`}
-        className="block"
+        className="block flex-shrink-0"
         aria-label={`View ${product.title}`}
       >
+        {/* Image Container - Fixed height with consistent background */}
         <div className="relative">
           {badgeLeft && (
             <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-10">
@@ -98,64 +95,92 @@ export default function ProductCard({
               {badgeRight}
             </div>
           )}
+
+          {/* Fixed aspect ratio container with subtle pattern background */}
           <div
-            className={`bg-gradient-to-br from-gray-50 to-gray-100 ${imageHeight} flex items-center justify-center relative overflow-hidden p-4`}
+            className={`relative ${imageHeight} overflow-hidden bg-gradient-to-br from-gray-50 via-white to-gray-50`}
           >
-            <SafeImage
-              src={imageUrl}
-              alt={product.title}
-              width={600}
-              height={600}
-              className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+            {/* Subtle dot pattern overlay */}
+            <div
+              className="absolute inset-0 opacity-[0.03]"
+              style={{
+                backgroundImage: `radial-gradient(circle, #000 1px, transparent 1px)`,
+                backgroundSize: "20px 20px",
+              }}
             />
+
+            {/* Image wrapper with padding and centering */}
+            <div className="absolute inset-0 p-4 flex items-center justify-center">
+              <div className="relative w-full h-full">
+                <SafeImage
+                  src={imageUrl}
+                  alt={product.title}
+                  fill
+                  className="object-contain group-hover:scale-105 transition-transform duration-500 ease-out"
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                />
+              </div>
+            </div>
           </div>
         </div>
-        <div className={padding}>
-          <div className="flex items-center gap-2 mb-2 sm:mb-3">
-            <Star
-              className="h-4 w-4 fill-amber-400 text-amber-400 shrink-0"
-              aria-hidden
-            />
-            <span
-              className="text-sm font-semibold text-gray-900"
-              aria-label={`Rating: ${rating} out of 5`}
-            >
-              {rating.toFixed(1)}
-            </span>
-            <span className="text-xs sm:text-sm text-gray-500">
-              ({reviewCount} {reviewCount === 1 ? "review" : "reviews"})
-            </span>
+
+        {/* Content Container - Flexible with consistent structure */}
+        <div className={`${padding} flex-grow flex flex-col`}>
+          {/* Rating Section - Fixed height */}
+          <div className="flex items-center gap-1.5 mb-2 h-4">
+            <div className="flex items-center gap-1">
+              <Star
+                className="h-3.5 w-3.5 fill-amber-400 text-amber-400 shrink-0"
+                aria-hidden
+              />
+              <span
+                className="text-xs font-semibold text-gray-900"
+                aria-label={`Rating: ${rating} out of 5`}
+              >
+                {rating.toFixed(1)}
+              </span>
+            </div>
+            <span className="text-xs text-gray-500">({reviewCount})</span>
           </div>
+
+          {/* Title - Fixed 2 lines with ellipsis */}
           <h3
-            className={`font-bold text-gray-900 mb-2 line-clamp-2 ${titleSize}`}
+            className="font-bold text-gray-900 mb-1.5 text-base leading-snug h-11 line-clamp-2"
             itemProp="name"
           >
             {product.title}
           </h3>
-          <p className="text-gray-600 text-sm mb-3 sm:mb-4 line-clamp-2">
+
+          {/* Description - Fixed 2 lines with ellipsis */}
+          <p className="text-gray-600 text-sm mb-3 line-clamp-2 h-10 leading-5">
             {description}
           </p>
-          <div className="flex flex-wrap items-baseline gap-2">
-            <span
-              className="text-lg sm:text-xl font-bold text-gray-900"
-              itemProp="offers"
-              itemScope
-              itemType="https://schema.org/Offer"
-            >
-              <meta itemProp="price" content={String(product.price)} />
-              <meta itemProp="priceCurrency" content="KES" />
-              {formatPrice(product.price)}
-            </span>
-            {showComparePrice && (
-              <span className="text-sm text-gray-400 line-through">
-                {formatPrice(product.compare_at_price!)}
+
+          {/* Price Section - Fixed height at bottom of content */}
+          <div className="mt-auto">
+            <div className="flex flex-wrap items-baseline gap-2 mb-3">
+              <span
+                className="text-lg font-bold text-gray-900"
+                itemProp="offers"
+                itemScope
+                itemType="https://schema.org/Offer"
+              >
+                <meta itemProp="price" content={String(product.price)} />
+                <meta itemProp="priceCurrency" content="KES" />
+                {formatPrice(product.price)}
               </span>
-            )}
+              {showComparePrice && (
+                <span className="text-xs text-gray-400 line-through">
+                  {formatPrice(product.compare_at_price!)}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </Link>
-      <div className={`${padding} pt-0`}>
+
+      {/* Add to Cart Button - Fixed at bottom */}
+      <div className={`${padding} pt-0 mt-auto`}>
         <button
           type="button"
           onClick={(e) => {
@@ -165,15 +190,23 @@ export default function ProductCard({
               product_id: product.id,
               title: product.title,
               slug: product.slug,
-              price: product.compare_at_price && product.compare_at_price > product.price ? product.compare_at_price : product.price,
-              sale_price: product.compare_at_price && product.compare_at_price > product.price ? product.price : undefined,
+              price:
+                product.compare_at_price &&
+                product.compare_at_price > product.price
+                  ? product.compare_at_price
+                  : product.price,
+              sale_price:
+                product.compare_at_price &&
+                product.compare_at_price > product.price
+                  ? product.price
+                  : undefined,
               image: imageUrl,
             });
           }}
-          className="w-full bg-black text-white py-2.5 sm:py-3 rounded-xl hover:bg-gray-800 transition-all font-semibold text-sm sm:text-base flex items-center justify-center gap-2 shadow-lg"
+          className="w-full bg-gray-900 text-white py-2.5 rounded-xl hover:bg-gray-800 active:scale-[0.98] transition-all duration-200 font-semibold text-sm flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
           aria-label={`Add ${product.title} to cart`}
         >
-          <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+          <ShoppingCart className="h-4 w-4 shrink-0" />
           <span>Add to Cart</span>
         </button>
       </div>
