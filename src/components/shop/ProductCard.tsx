@@ -1,8 +1,8 @@
 "use client";
 
 import { ShoppingCart, Star } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
+import { SafeImage } from "@/components/shared/SafeImage";
 import type { ReactNode } from "react";
 import type { StorefrontProduct } from "@/lib/actions/storefront-actions";
 
@@ -99,7 +99,7 @@ export default function ProductCard({
           <div
             className={`bg-gradient-to-br from-gray-50 to-gray-100 ${imageHeight} flex items-center justify-center relative overflow-hidden p-4`}
           >
-            <Image
+            <SafeImage
               src={imageUrl}
               alt={product.title}
               width={600}
