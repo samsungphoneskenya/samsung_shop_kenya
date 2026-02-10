@@ -15,7 +15,9 @@ export default async function CategoriesPage() {
 
   const { data: categories, error } = await supabase
     .from("categories")
-    .select("*")
+    .select("*, parent:categories!parent_id(name)")
+    .order("level", { ascending: true })
+    .order("display_order", { ascending: true })
     .order("name");
 
   if (error) {

@@ -3,11 +3,16 @@
 import Link from "next/link";
 import { deleteCategory } from "@/lib/actions/category-actions";
 import { Database } from "@/types/database.types";
+import { SafeImage } from "@/components/shared/SafeImage";
 
-type Category = Database["public"]["Tables"]["categories"]["Row"];
+type CategoryRow = Database["public"]["Tables"]["categories"]["Row"];
+
+type CategoryWithParent = CategoryRow & {
+  parent?: { name: string } | null;
+};
 
 type CategoriesTableProps = {
-  categories: Category[];
+  categories: CategoryWithParent[];
 };
 
 export function CategoriesTable({ categories }: CategoriesTableProps) {
@@ -25,11 +30,12 @@ export function CategoriesTable({ categories }: CategoriesTableProps) {
   };
 
   const getStatusBadge = (status: string) => {
-    const badges = {
+    const badges: Record<string, string> = {
       published: "bg-green-100 text-green-800",
       draft: "bg-yellow-100 text-yellow-800",
+      archived: "bg-gray-100 text-gray-800",
     };
-    return badges[status as keyof typeof badges] || badges.draft;
+    return badges[status] ?? "bg-gray-100 text-gray-800";
   };
 
   return (
@@ -41,7 +47,13 @@ export function CategoriesTable({ categories }: CategoriesTableProps) {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
+                    Image
+                  </th>
+                  <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                     Name
+                  </th>
+                  <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                    Parent
                   </th>
                   <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                     Slug
@@ -61,7 +73,7 @@ export function CategoriesTable({ categories }: CategoriesTableProps) {
                 {categories.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={7}
                       className="py-12 text-center text-sm text-gray-500"
                     >
                       No categories yet. Create your first category to get
@@ -71,8 +83,28 @@ export function CategoriesTable({ categories }: CategoriesTableProps) {
                 ) : (
                   categories.map((category) => (
                     <tr key={category.id}>
-                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                      <td className="whitespace-nowrap py-3 pl-4 pr-3 sm:pl-6">
+                        <div className="h-10 w-10 flex-shrink-0 rounded-md overflow-hidden bg-gray-100">
+                          {category.image_url ? (
+                            <SafeImage
+                              src={category.image_url}
+                              alt=""
+                              width={40}
+                              height={40}
+                              className="h-10 w-10 object-cover"
+                            />
+                          ) : (
+                            <span className="flex h-10 w-10 items-center justify-center text-gray-400 text-xs">
+                              —
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900">
                         {category.name}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {category.parent?.name ?? "—"}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                         {category.slug}
@@ -80,14 +112,14 @@ export function CategoriesTable({ categories }: CategoriesTableProps) {
                       <td className="whitespace-nowrap px-3 py-4 text-sm">
                         <span
                           className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getStatusBadge(
-                            category.status
+                            category.status ?? "draft"
                           )}`}
                         >
                           {category.status}
                         </span>
                       </td>
                       <td className="px-3 py-4 text-sm text-gray-500 max-w-xs truncate">
-                        {category.description || "-"}
+                        {category.description || "—"}
                       </td>
                       <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                         <Link

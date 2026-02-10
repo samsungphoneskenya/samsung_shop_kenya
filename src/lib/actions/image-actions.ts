@@ -11,7 +11,9 @@ type ImageActionResult = {
 };
 
 const BUCKET = "product-images";
+const CATEGORY_BUCKET = "category-images";
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+const CATEGORY_MAX_SIZE = 3 * 1024 * 1024; // 3MB per migration
 
 /**
  * Upload product image to storage and optionally update product's featured_image / gallery_images
@@ -187,6 +189,114 @@ export async function deleteProductImage(
         gallery_images: newGallery,
       },
     };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to delete image";
+    return { error: message };
+  }
+}
+
+// --- Category image (single image_url) ---
+
+type CategoryImageResult = { data?: { url: string }; error?: string };
+
+/**
+ * Upload category image to storage and set category.image_url
+ */
+export async function uploadCategoryImage(
+  formData: FormData
+): Promise<CategoryImageResult> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Unauthorized" };
+
+  const file = formData.get("file") as File | null;
+  const categoryId = formData.get("categoryId") as string;
+
+  if (!file || !categoryId) return { error: "Missing file or category ID" };
+
+  const supabase = await createClient();
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const optimizedBuffer = await sharp(buffer)
+      .resize(1200, 600, { fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 85 })
+      .toBuffer();
+
+    const { data: cat } = await supabase
+      .from("categories")
+      .select("slug")
+      .eq("id", categoryId)
+      .single();
+
+    const slug = cat?.slug ?? categoryId;
+    const timestamp = Date.now();
+    const filename = `${slug}-${timestamp}.webp`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(CATEGORY_BUCKET)
+      .upload(filename, optimizedBuffer, {
+        contentType: "image/webp",
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (uploadError) throw uploadError;
+
+    const { data: urlData } = supabase.storage
+      .from(CATEGORY_BUCKET)
+      .getPublicUrl(filename);
+    const url = urlData.publicUrl;
+
+    const { error: updateError } = await supabase
+      .from("categories")
+      .update({ image_url: url })
+      .eq("id", categoryId);
+
+    if (updateError) throw updateError;
+
+    revalidatePath(`/dashboard/categories/${categoryId}`);
+    revalidatePath("/dashboard/categories");
+    return { data: { url } };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to upload image";
+    console.error("Category upload error:", err);
+    return { error: message };
+  }
+}
+
+/**
+ * Delete category image: remove from storage and clear category.image_url
+ */
+export async function deleteCategoryImage(
+  categoryId: string,
+  imageUrl: string
+): Promise<CategoryImageResult> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Unauthorized" };
+
+  const supabase = await createClient();
+
+  try {
+    const url = new URL(imageUrl);
+    const pathMatch = url.pathname.match(new RegExp(`${CATEGORY_BUCKET}/(.+)`));
+    const filePath = pathMatch ? pathMatch[1] : null;
+
+    if (filePath) {
+      await supabase.storage.from(CATEGORY_BUCKET).remove([filePath]);
+    }
+
+    const { error } = await supabase
+      .from("categories")
+      .update({ image_url: null })
+      .eq("id", categoryId);
+
+    if (error) throw error;
+
+    revalidatePath(`/dashboard/categories/${categoryId}`);
+    revalidatePath("/dashboard/categories");
+    return { data: { url: imageUrl } };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to delete image";
     return { error: message };
