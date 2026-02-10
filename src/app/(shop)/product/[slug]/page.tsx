@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
+import { SafeImage } from "@/components/shared/SafeImage";
 import { notFound } from "next/navigation";
 import {
   Star,
@@ -169,7 +169,7 @@ export default async function ProductPage({ params }: {
 
               {image && (
                 <div className="relative aspect-[4/3] w-full">
-                  <Image
+                  <SafeImage
                     src={image}
                     alt={product.title}
                     fill
@@ -194,7 +194,7 @@ export default async function ProductPage({ params }: {
                     key={src + idx}
                     className="relative aspect-square overflow-hidden rounded-2xl bg-white shadow-sm"
                   >
-                    <Image
+                    <SafeImage
                       src={src}
                       alt={`${product.title} thumbnail ${idx + 1}`}
                       fill

@@ -223,7 +223,7 @@ export function ProductsTable({
                           Edit
                         </Link>
                         <Link
-                          href={`/products/${product.slug}`}
+                          href={`/product/${product.slug}`}
                           target="_blank"
                           className="text-gray-600 hover:text-gray-900"
                         >

@@ -13,6 +13,7 @@ import {
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { SafeImage } from "@/components/shared/SafeImage";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -146,7 +147,7 @@ export default function Header() {
                           }}
                           className="flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
                         >
-                          <Image
+                          <SafeImage
                             src={
                               product.featured_image || "/images/logo.png"
                             }
@@ -365,7 +366,7 @@ export default function Header() {
                         }}
                         className="flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
                       >
-                        <Image
+                        <SafeImage
                           src={
                             product.featured_image || "/images/logo.png"
                           }
