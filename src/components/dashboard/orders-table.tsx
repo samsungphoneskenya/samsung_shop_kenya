@@ -226,13 +226,15 @@ export function OrdersTable({
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm">
                         <span
-                          className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-                            order.payment_status &&
-                            getPaymentBadge(order.payment_status)
-                          }`}
+                          className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getPaymentBadge(
+                            order.payment_status || "pending"
+                          )}`}
                         >
-                          {order.payment_status}
+                          {order.payment_status || "pending"}
                         </span>
+                        <div className="text-xs text-gray-500 mt-0.5">
+                          {order.payment_method === "mpesa" ? "M-Pesa" : "Pay on delivery"}
+                        </div>
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
                         KSh {order.total.toLocaleString()}

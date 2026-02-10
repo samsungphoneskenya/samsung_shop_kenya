@@ -225,7 +225,7 @@ export type Database = {
           carrier: string | null
           coupon_code: string | null
           created_at: string | null
-          customer_email: string
+          customer_email: string | null
           customer_name: string
           customer_notes: string | null
           customer_phone: string
@@ -251,12 +251,13 @@ export type Database = {
           tracking_number: string | null
           updated_at: string | null
           user_id: string | null
+          whatsapp_sent_at: string | null
         }
         Insert: {
           carrier?: string | null
           coupon_code?: string | null
           created_at?: string | null
-          customer_email: string
+          customer_email?: string | null
           customer_name: string
           customer_notes?: string | null
           customer_phone: string
@@ -282,12 +283,13 @@ export type Database = {
           tracking_number?: string | null
           updated_at?: string | null
           user_id?: string | null
+          whatsapp_sent_at?: string | null
         }
         Update: {
           carrier?: string | null
           coupon_code?: string | null
           created_at?: string | null
-          customer_email?: string
+          customer_email?: string | null
           customer_name?: string
           customer_notes?: string | null
           customer_phone?: string
@@ -313,6 +315,7 @@ export type Database = {
           tracking_number?: string | null
           updated_at?: string | null
           user_id?: string | null
+          whatsapp_sent_at?: string | null
         }
         Relationships: [
           {
