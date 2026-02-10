@@ -6,8 +6,8 @@ import {
   deleteProductImage,
   setProductFeaturedImage,
 } from "@/lib/actions/image-actions";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { SafeImage } from "@/components/shared/SafeImage";
 
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -221,7 +221,7 @@ export function ImageUpload({
               className="relative group rounded-lg border border-gray-200 overflow-hidden bg-gray-100"
             >
               <div className="aspect-square relative">
-                <Image
+                <SafeImage
                   src={url}
                   alt="Product"
                   fill
