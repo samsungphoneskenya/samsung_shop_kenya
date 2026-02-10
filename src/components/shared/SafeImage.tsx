@@ -6,8 +6,11 @@ import Image, { ImageProps } from "next/image";
  * can resolve to IPs that Next treats as private, causing "resolved to private ip".
  * Passing unoptimized for Supabase URLs avoids the server fetch.
  */
-export function SafeImage({ src, ...props }: ImageProps) {
-  const srcStr = typeof src === "string" ? src : (src as { src: string })?.src ?? "";
+export function SafeImage({ src, alt, ...props }: ImageProps) {
+  const srcStr =
+    typeof src === "string" ? src : ((src as { src: string })?.src ?? "");
   const isSupabase = srcStr.includes("supabase.co");
-  return <Image src={src} unoptimized={isSupabase} {...props} />;
+  return (
+    <Image src={src} alt={alt ?? ""} unoptimized={isSupabase} {...props} />
+  );
 }

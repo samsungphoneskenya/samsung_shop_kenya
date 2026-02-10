@@ -30,6 +30,10 @@ export async function uploadProductImage(
 
   if (!file || !productId) return { error: "Missing file or product ID" };
 
+  if (file.size > MAX_SIZE) {
+    return { error: "Image is too large. Maximum size is 5MB." };
+  }
+
   const supabase = await createClient();
 
   try {
@@ -212,6 +216,10 @@ export async function uploadCategoryImage(
   const categoryId = formData.get("categoryId") as string;
 
   if (!file || !categoryId) return { error: "Missing file or category ID" };
+
+  if (file.size > CATEGORY_MAX_SIZE) {
+    return { error: "Image is too large. Maximum size is 3MB." };
+  }
 
   const supabase = await createClient();
 

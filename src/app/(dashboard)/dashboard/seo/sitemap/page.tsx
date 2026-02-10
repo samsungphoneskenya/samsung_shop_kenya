@@ -1,6 +1,5 @@
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/db/client";
-import Link from "next/link";
 
 export const metadata = {
   title: "Sitemap Generator",

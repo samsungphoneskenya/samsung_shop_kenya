@@ -200,7 +200,7 @@ export function ProductsTable({
                       <td className="whitespace-nowrap px-3 py-4 text-sm">
                         <span
                           className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getStatusBadge(
-                            product.status
+                            product?.status ?? ""
                           )}`}
                         >
                           {product.status}

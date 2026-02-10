@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
 import { SignupForm } from "@/components/auth/signup-form";
@@ -24,12 +25,12 @@ export default async function SignupPage() {
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             Or{" "}
-            <a
-              href="/login"
-              className="font-medium text-blue-600 hover:text-blue-500"
-            >
+          <Link
+            href="/login"
+            className="font-medium text-blue-600 hover:text-blue-500"
+          >
               sign in to existing account
-            </a>
+          </Link>
           </p>
         </div>
         <SignupForm />

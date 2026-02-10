@@ -120,7 +120,7 @@ export async function createProduct(
     }
 
     // Create product
-    const { data: product, error } = await supabase
+    const { error } = await supabase
       .from("products")
       .insert(validated)
       .select()

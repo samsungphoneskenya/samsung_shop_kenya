@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import Link from "next/link";
 import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
 
 export const metadata: Metadata = {
@@ -21,12 +22,12 @@ export default function ForgotPasswordPage() {
         </div>
         <ForgotPasswordForm />
         <div className="text-center">
-          <a
-            href="/login"
-            className="font-medium text-blue-600 hover:text-blue-500 text-sm"
-          >
+        <Link
+          href="/login"
+          className="font-medium text-blue-600 hover:text-blue-500 text-sm"
+        >
             Back to login
-          </a>
+        </Link>
         </div>
       </div>
     </div>

@@ -13,7 +13,7 @@ type Props = {
 };
 
 export default async function CheckoutSuccessPage({ searchParams }: Props) {
-  const { order: orderId, number: orderNumber } = await searchParams;
+  const { number: orderNumber } = await searchParams;
 
   return (
     <div className="min-h-screen bg-gray-50">

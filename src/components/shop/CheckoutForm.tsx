@@ -13,7 +13,7 @@ export function CheckoutForm() {
   const [error, setError] = useState<string | null>(null);
 
   const total = getCartTotal();
-  const shippingFee = 0; // Free shipping for now; can be calculated later
+  const shippingFee = 0 as number;
   const subtotal = total;
   const grandTotal = subtotal + shippingFee;
 
@@ -88,7 +88,7 @@ export function CheckoutForm() {
 
       clearCart();
       router.push(`/checkout/success?order=${result.orderId}&number=${encodeURIComponent(result.orderNumber || "")}`);
-    } catch (err) {
+    } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
     }
@@ -215,7 +215,7 @@ export function CheckoutForm() {
         </div>
         <div className="flex justify-between text-gray-600 mb-2">
           <span>Delivery</span>
-          <span>{shippingFee === 0 ? "Free" : `KSh ${shippingFee.toLocaleString()}`}</span>
+          <span>{shippingFee === 0 ? "Free" : `KSh ${shippingFee && shippingFee.toLocaleString()}`}</span>
         </div>
         <div className="flex justify-between font-semibold text-gray-900 text-lg mt-4 pt-4 border-t border-gray-200">
           <span>Total</span>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
-import { useActionState, useState, useEffect } from "react";
+import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createCategory, updateCategory, deleteCategory } from "@/lib/actions/category-actions";
 import { CategoryImageUpload } from "@/components/dashboard/category-image-upload";
@@ -65,21 +65,6 @@ export function CategoryForm({ category, parentOptions }: CategoryFormProps) {
   };
 
   const [formData, setFormData] = useState<FormData>(initialFormData);
-
-  useEffect(() => {
-    if (category) {
-      setFormData({
-        name: category.name ?? "",
-        slug: category.slug ?? "",
-        description: category.description ?? "",
-        parent_id: category.parent_id ?? "",
-        display_order: String(category.display_order ?? 0),
-        status: category.status ?? "published",
-        meta_title: category.meta_title ?? "",
-        meta_description: category.meta_description ?? "",
-      });
-    }
-  }, [category?.updated_at, category?.image_url]);
 
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>(
     {}

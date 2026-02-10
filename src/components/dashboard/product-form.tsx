@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
-import { useActionState, useState, useEffect } from "react";
+import { useActionState, useState } from "react";
 import {
   createProduct,
   updateProduct,
@@ -99,40 +99,6 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   };
 
   const [formData, setFormData] = useState<FormData>(initialFormData);
-
-  // Sync form when product updates (e.g. after image upload + router.refresh)
-  useEffect(() => {
-    if (product) {
-      setFormData({
-        title: product.title ?? "",
-        slug: product.slug ?? "",
-        description: product.description ?? "",
-        short_description: product.short_description ?? "",
-        category_id: product.category_id ?? "",
-        status: product.status ?? "draft",
-        visibility: product.visibility ?? "visible",
-        is_featured: product.is_featured ?? false,
-        is_bestseller: product.is_bestseller ?? false,
-        is_new_arrival: product.is_new_arrival ?? false,
-        on_sale: product.on_sale ?? false,
-        price: product.price?.toString() ?? "",
-        compare_at_price: product.compare_at_price?.toString() ?? "",
-        cost_price: product.cost_price?.toString() ?? "",
-        sku: product.sku ?? "",
-        quantity: product.quantity?.toString() ?? "0",
-        low_stock_threshold: product.low_stock_threshold?.toString() ?? "5",
-        track_inventory: product.track_inventory ?? true,
-        allow_backorder: product.allow_backorder ?? false,
-        weight: product.weight?.toString() ?? "",
-        video_url: product.video_url ?? "",
-        requires_shipping: product.requires_shipping ?? true,
-        shipping_class: product.shipping_class ?? "",
-        meta_title: product.meta_title ?? "",
-        meta_description: product.meta_description ?? "",
-        meta_keywords: (product.meta_keywords ?? []).join(", "),
-      });
-    }
-  }, [product?.updated_at, product?.featured_image, product?.gallery_images]);
 
   // Track validation errors
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>(

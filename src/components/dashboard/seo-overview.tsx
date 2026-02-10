@@ -4,7 +4,7 @@ type SeoProductPageTypes = {
   id: string;
   title: string;
   slug: string;
-  status: string;
+  status: string | null;
 };
 
 type SEOOverviewProps = {

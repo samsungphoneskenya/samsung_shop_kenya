@@ -218,8 +218,8 @@ export async function cancelOrder(orderId: string): Promise<ActionResult> {
     if (items) {
       for (const item of items) {
         await supabase.rpc("increment_product_quantity", {
-          product_id: item.product_id,
-          quantity_to_add: item.quantity,
+          product_id: item.product_id ?? "",
+          quantity_to_add: item.quantity ?? 0,
         });
       }
     }
