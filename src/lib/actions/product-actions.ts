@@ -14,6 +14,20 @@ type ActionResult = {
   success?: boolean;
 };
 
+function parseGalleryImages(
+  value: FormDataEntryValue | null
+): string[] | null {
+  if (value == null || typeof value !== "string") return null;
+  try {
+    const arr = JSON.parse(value) as unknown;
+    return Array.isArray(arr) && arr.every((x) => typeof x === "string")
+      ? arr
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Create a new product
  */
@@ -72,6 +86,13 @@ export async function createProduct(
         isTruthy(formData.get("on_sale")) ||
         (typeof compareAt === "number" && compareAt > price),
       featured_image: (formData.get("featured_image") as string) || null,
+      gallery_images: parseGalleryImages(formData.get("gallery_images")),
+      video_url: (formData.get("video_url") as string) || null,
+      weight: formData.get("weight")
+        ? parseFloat(formData.get("weight") as string)
+        : null,
+      requires_shipping: isTruthy(formData.get("requires_shipping")),
+      shipping_class: (formData.get("shipping_class") as string) || null,
       meta_title: (formData.get("meta_title") as string) || null,
       meta_description: (formData.get("meta_description") as string) || null,
       meta_keywords: (formData.get("meta_keywords") as string)
@@ -176,6 +197,13 @@ export async function updateProduct(
         isTruthy(formData.get("on_sale")) ||
         (typeof compareAt === "number" && compareAt > price),
       featured_image: (formData.get("featured_image") as string) || null,
+      gallery_images: parseGalleryImages(formData.get("gallery_images")),
+      video_url: (formData.get("video_url") as string) || null,
+      weight: formData.get("weight")
+        ? parseFloat(formData.get("weight") as string)
+        : null,
+      requires_shipping: isTruthy(formData.get("requires_shipping")),
+      shipping_class: (formData.get("shipping_class") as string) || null,
       meta_title: (formData.get("meta_title") as string) || null,
       meta_description: (formData.get("meta_description") as string) || null,
       meta_keywords: (formData.get("meta_keywords") as string)

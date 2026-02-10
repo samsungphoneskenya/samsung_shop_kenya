@@ -22,9 +22,7 @@ export default async function SchemaPage({
     if (searchParams.type === "product") {
       const { data } = await supabase
         .from("products")
-        .select(
-          "*, category:categories(name), images:product_images(*), seo_metadata(*)"
-        )
+        .select("*, category:categories(name)")
         .eq("id", searchParams.id)
         .single();
       entityData = data;

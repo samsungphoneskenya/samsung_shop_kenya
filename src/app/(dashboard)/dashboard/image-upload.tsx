@@ -1,44 +1,59 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import {
   uploadProductImage,
   deleteProductImage,
+  setProductFeaturedImage,
 } from "@/lib/actions/image-actions";
 import Image from "next/image";
-import { Database } from "@/types/database.types";
+import { useRouter } from "next/navigation";
 
-type ProductImage = Database["public"]["Tables"]["product_images"]["Row"];
+const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
 type ImageUploadProps = {
   productId: string;
-  existingImages: ProductImage[];
+  featuredImage: string | null;
+  galleryImages: string[];
 };
 
-export function ImageUpload({ productId, existingImages }: ImageUploadProps) {
-  const [images, setImages] = useState<ProductImage[]>(existingImages);
+/** Build ordered list: featured first, then other gallery (no duplicate) */
+function orderedUrls(featured: string | null, gallery: string[]): string[] {
+  const rest = gallery.filter((u) => u !== featured);
+  return featured ? [featured, ...rest] : rest;
+}
+
+export function ImageUpload({
+  productId,
+  featuredImage,
+  galleryImages,
+}: ImageUploadProps) {
+  const router = useRouter();
+  const urls = useMemo(
+    () => orderedUrls(featuredImage, galleryImages),
+    [featuredImage, galleryImages]
+  );
+
+  const [optimisticUrls, setOptimisticUrls] = useState<string[] | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const displayUrls = optimisticUrls ?? urls;
+
   const handleFileSelect = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
-    // Validate files
     const validFiles = Array.from(files).filter((file) => {
-      // Check file type
       if (!file.type.startsWith("image/")) {
-        setError("Only image files are allowed");
+        setError("Only image files are allowed (JPEG, PNG, GIF, WebP)");
         return false;
       }
-
-      // Check file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
+      if (file.size > MAX_SIZE) {
         setError("Image size must be less than 5MB");
         return false;
       }
-
       return true;
     });
 
@@ -48,62 +63,85 @@ export function ImageUpload({ productId, existingImages }: ImageUploadProps) {
     setError(null);
 
     try {
-      for (const file of validFiles) {
+      for (let i = 0; i < validFiles.length; i++) {
+        const file = validFiles[i];
         const formData = new FormData();
         formData.append("file", file);
         formData.append("productId", productId);
-        formData.append("position", images.length.toString());
-        formData.append("isPrimary", images.length === 0 ? "true" : "false");
+        formData.append("isPrimary", displayUrls.length === 0 && i === 0 ? "true" : "false");
 
         const result = await uploadProductImage(formData);
 
         if (result.error) {
           setError(result.error);
-        } else if (result.data) {
-          setImages((prev) => [...prev, result.data!]);
+          break;
+        }
+        if (result.data?.url) {
+          setOptimisticUrls((prev) => {
+            const base = prev ?? displayUrls;
+            const isFirst = base.length === 0 && i === 0;
+            return isFirst
+              ? [result.data!.url]
+              : [...base, result.data!.url];
+          });
         }
       }
+      router.refresh();
     } catch (err) {
       setError("Failed to upload images");
       console.error(err);
     } finally {
       setUploading(false);
+      setOptimisticUrls(null);
     }
   };
 
-  const handleDelete = async (imageId: string) => {
+  const handleDelete = async (imageUrl: string) => {
     if (!confirm("Are you sure you want to delete this image?")) return;
 
+    setError(null);
+    setOptimisticUrls((prev) => {
+      const base = prev ?? displayUrls;
+      const next = base.filter((u) => u !== imageUrl);
+      return next.length !== base.length ? next : null;
+    });
+
     try {
-      await deleteProductImage(imageId);
-      setImages((prev) => prev.filter((img) => img.id !== imageId));
+      const result = await deleteProductImage(productId, imageUrl);
+      if (result.error) {
+        setError(result.error);
+        setOptimisticUrls(null);
+      } else {
+        router.refresh();
+      }
     } catch (err) {
       setError("Failed to delete image");
+      setOptimisticUrls(null);
       console.error(err);
     }
   };
 
-  const handleSetPrimary = async (imageId: string) => {
+  const handleSetPrimary = async (imageUrl: string) => {
+    if (featuredImage === imageUrl) return;
+
+    setError(null);
+    setOptimisticUrls((prev) => {
+      const base = prev ?? displayUrls;
+      const rest = base.filter((u) => u !== imageUrl);
+      return [imageUrl, ...rest];
+    });
+
     try {
-      const formData = new FormData();
-      formData.append("imageId", imageId);
-      formData.append("productId", productId);
-
-      const result = await uploadProductImage(formData);
-
+      const result = await setProductFeaturedImage(productId, imageUrl);
       if (result.error) {
         setError(result.error);
+        setOptimisticUrls(null);
       } else {
-        // Update local state
-        setImages((prev) =>
-          prev.map((img) => ({
-            ...img,
-            is_primary: img.id === imageId,
-          }))
-        );
+        router.refresh();
       }
     } catch (err) {
-      setError("Failed to update primary image");
+      setError("Failed to set primary image");
+      setOptimisticUrls(null);
       console.error(err);
     }
   };
@@ -111,11 +149,7 @@ export function ImageUpload({ productId, existingImages }: ImageUploadProps) {
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
+    setDragActive(e.type === "dragenter" || e.type === "dragover");
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -127,9 +161,8 @@ export function ImageUpload({ productId, existingImages }: ImageUploadProps) {
 
   return (
     <div className="space-y-4">
-      {/* Upload Area */}
       <div
-        className={`relative border-2 border-dashed rounded-lg p-6 text-center ${
+        className={`relative border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
           dragActive
             ? "border-blue-500 bg-blue-50"
             : "border-gray-300 hover:border-gray-400"
@@ -143,11 +176,10 @@ export function ImageUpload({ productId, existingImages }: ImageUploadProps) {
           ref={fileInputRef}
           type="file"
           multiple
-          accept="image/*"
+          accept="image/jpeg,image/png,image/gif,image/webp"
           onChange={(e) => handleFileSelect(e.target.files)}
           className="hidden"
         />
-
         <svg
           className="mx-auto h-12 w-12 text-gray-400"
           stroke="currentColor"
@@ -161,7 +193,6 @@ export function ImageUpload({ productId, existingImages }: ImageUploadProps) {
             strokeLinejoin="round"
           />
         </svg>
-
         <div className="mt-4">
           <button
             type="button"
@@ -173,85 +204,67 @@ export function ImageUpload({ productId, existingImages }: ImageUploadProps) {
           </button>
           <span className="text-gray-500"> or drag and drop</span>
         </div>
-
-        <p className="mt-2 text-xs text-gray-500">PNG, JPG, GIF up to 5MB</p>
+        <p className="mt-2 text-xs text-gray-500">PNG, JPG, GIF, WebP up to 5MB</p>
       </div>
 
-      {/* Error Message */}
       {error && (
         <div className="rounded-md bg-red-50 p-4">
           <div className="text-sm text-red-800">{error}</div>
         </div>
       )}
 
-      {/* Images Grid */}
-      {images.length > 0 && (
+      {displayUrls.length > 0 && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {images.map((image) => (
+          {displayUrls.map((url) => (
             <div
-              key={image.id}
-              className="relative group rounded-lg border border-gray-200 overflow-hidden"
+              key={url}
+              className="relative group rounded-lg border border-gray-200 overflow-hidden bg-gray-100"
             >
-              {/* Image */}
-              <div className="aspect-square relative bg-gray-100">
+              <div className="aspect-square relative">
                 <Image
-                  src={image.url}
-                  alt={image.alt_text || "Product image"}
+                  src={url}
+                  alt="Product"
                   fill
                   className="object-cover"
                   sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                 />
               </div>
-
-              {/* Primary Badge */}
-              {image.is_primary && (
+              {featuredImage === url && (
                 <div className="absolute top-2 left-2">
                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-600 text-white">
                     Primary
                   </span>
                 </div>
               )}
-
-              {/* Actions Overlay */}
-              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-opacity flex items-center justify-center opacity-0 group-hover:opacity-100">
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
                 <div className="flex gap-2">
-                  {!image.is_primary && (
+                  {featuredImage !== url && (
                     <button
-                      onClick={() => handleSetPrimary(image.id)}
+                      type="button"
+                      onClick={() => handleSetPrimary(url)}
                       className="px-3 py-1 bg-white text-gray-900 rounded-md text-sm font-medium hover:bg-gray-100"
                     >
                       Set Primary
                     </button>
                   )}
                   <button
-                    onClick={() => handleDelete(image.id)}
+                    type="button"
+                    onClick={() => handleDelete(url)}
                     className="px-3 py-1 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700"
                   >
                     Delete
                   </button>
                 </div>
               </div>
-
-              {/* Alt Text */}
-              {image.alt_text && (
-                <div className="p-2 bg-white">
-                  <p className="text-xs text-gray-600 truncate">
-                    {image.alt_text}
-                  </p>
-                </div>
-              )}
             </div>
           ))}
         </div>
       )}
 
-      {/* Upload Instructions */}
-      {images.length === 0 && !uploading && (
-        <div className="text-center py-8">
-          <p className="text-sm text-gray-500">
-            No images yet. Upload your first product image above.
-          </p>
-        </div>
+      {displayUrls.length === 0 && !uploading && (
+        <p className="text-center py-6 text-sm text-gray-500">
+          No images yet. Upload your first product image above.
+        </p>
       )}
     </div>
   );

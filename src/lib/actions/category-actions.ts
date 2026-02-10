@@ -185,8 +185,7 @@ export async function getProductsByCategory(
     .select(
       `
       *,
-      category:categories(id, name, slug),
-      images:product_images(url, alt_text, is_primary)
+      category:categories(id, name, slug)
     `
     )
     .eq("status", "published")
