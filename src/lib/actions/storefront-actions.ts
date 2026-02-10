@@ -15,6 +15,12 @@ export type StorefrontProduct = {
   slug: string;
   description: string | null;
   short_description: string | null;
+  /** Primary SEO title override for detail pages */
+  meta_title: string | null;
+  /** SEO meta description for search and social */
+  meta_description: string | null;
+  /** Optional keyword hints – useful for advanced SEO tooling */
+  meta_keywords: string[] | null;
   price: number;
   compare_at_price: number | null;
   featured_image: string | null;
