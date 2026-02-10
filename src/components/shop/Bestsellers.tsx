@@ -12,11 +12,11 @@ export default function Bestsellers({
   return (
     <section className="py-20 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-12">
+        <div className="mb-12 text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
             Try our bestsellers
           </h2>
-          <p className="text-gray-600 text-lg max-w-3xl">
+          <p className="text-gray-600 text-lg m-auto max-w-3xl flex text-center">
             At our shop, we believe in the power of technology to enhance your
             life. That&apos;s why we offer the latest Samsung smartphones and
             accessories for work, gaming, entertainment, and everyday use.
