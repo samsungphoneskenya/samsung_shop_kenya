@@ -97,9 +97,15 @@ export async function getCategoryTree() {
   const categoriesMap = new Map<string, CategoryWithChildren>();
   const tree: CategoryWithChildren[] = [];
 
-  // First pass: create map
+  // First pass: create map (normalize nulls to match Category type)
   data.forEach((cat) => {
-    categoriesMap.set(cat.id, { ...cat, children: [] });
+    categoriesMap.set(cat.id, {
+      ...cat,
+      level: cat.level ?? 0,
+      display_order: cat.display_order ?? 0,
+      status: cat.status ?? "published",
+      children: [],
+    } as CategoryWithChildren);
   });
 
   // Second pass: build tree
@@ -185,8 +191,7 @@ export async function getProductsByCategory(
     .select(
       `
       *,
-      category:categories(id, name, slug),
-      images:product_images(url, alt_text, is_primary)
+      category:categories(id, name, slug)
     `
     )
     .eq("status", "published")
@@ -199,6 +204,161 @@ export async function getProductsByCategory(
   }
 
   return data;
+}
+
+type CategoryActionResult = { error?: string; success?: boolean };
+
+const VALID_STATUS = ["published", "draft", "archived"] as const;
+
+/**
+ * Create a new category or subcategory
+ */
+export async function createCategory(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  _prevState: any,
+  formData: FormData
+): Promise<CategoryActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Unauthorized" };
+
+  const name = (formData.get("name") as string)?.trim();
+  const slug = (formData.get("slug") as string)?.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/^-+|-+$/g, "") || null;
+  const description = (formData.get("description") as string)?.trim() || null;
+  const parent_id = (formData.get("parent_id") as string) || null;
+  const display_order = parseInt((formData.get("display_order") as string) || "0", 10) || 0;
+  const status = (formData.get("status") as string) || "published";
+  const image_url = (formData.get("image_url") as string)?.trim() || null;
+  const meta_title = (formData.get("meta_title") as string)?.trim() || null;
+  const meta_description = (formData.get("meta_description") as string)?.trim() || null;
+
+  if (!name) return { error: "Category name is required" };
+  const finalSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  if (!finalSlug) return { error: "URL slug is required" };
+  if (!VALID_STATUS.includes(status as (typeof VALID_STATUS)[number])) {
+    return { error: "Invalid status" };
+  }
+
+  const supabase = await createClient();
+
+  const { data: existing } = await supabase
+    .from("categories")
+    .select("id")
+    .eq("slug", finalSlug)
+    .maybeSingle();
+
+  if (existing) return { error: "A category with this slug already exists" };
+
+  let level = 0;
+  if (parent_id) {
+    const { data: parent } = await supabase
+      .from("categories")
+      .select("level")
+      .eq("id", parent_id)
+      .single();
+    level = parent ? (parent.level ?? 0) + 1 : 1;
+  }
+
+  const { data: category, error } = await supabase
+    .from("categories")
+    .insert({
+      name,
+      slug: finalSlug,
+      description,
+      parent_id: parent_id || null,
+      level,
+      display_order,
+      status,
+      image_url,
+      meta_title,
+      meta_description,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/dashboard/categories");
+  redirect(`/dashboard/categories/${category.id}`);
+}
+
+/**
+ * Update an existing category or subcategory
+ */
+export async function updateCategory(
+  categoryId: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  _prevState: any,
+  formData: FormData
+): Promise<CategoryActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Unauthorized" };
+
+  const name = (formData.get("name") as string)?.trim();
+  const slug = (formData.get("slug") as string)?.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/^-+|-+$/g, "") || null;
+  const description = (formData.get("description") as string)?.trim() || null;
+  const parent_id = (formData.get("parent_id") as string) || null;
+  const display_order = parseInt((formData.get("display_order") as string) || "0", 10) ?? 0;
+  const status = (formData.get("status") as string) || "published";
+  const image_url = (formData.get("image_url") as string)?.trim() || null;
+  const meta_title = (formData.get("meta_title") as string)?.trim() || null;
+  const meta_description = (formData.get("meta_description") as string)?.trim() || null;
+
+  if (!name) return { error: "Category name is required" };
+  const finalSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  if (!finalSlug) return { error: "URL slug is required" };
+  if (!VALID_STATUS.includes(status as (typeof VALID_STATUS)[number])) {
+    return { error: "Invalid status" };
+  }
+
+  const supabase = await createClient();
+
+  const { data: existing } = await supabase
+    .from("categories")
+    .select("id")
+    .eq("slug", finalSlug)
+    .neq("id", categoryId)
+    .maybeSingle();
+
+  if (existing) return { error: "A category with this slug already exists" };
+
+  // Prevent setting self as parent
+  if (parent_id === categoryId) {
+    return { error: "Category cannot be its own parent" };
+  }
+
+  let level = 0;
+  if (parent_id) {
+    const { data: parent } = await supabase
+      .from("categories")
+      .select("level")
+      .eq("id", parent_id)
+      .single();
+    level = parent ? (parent.level ?? 0) + 1 : 1;
+  }
+
+  const { error } = await supabase
+    .from("categories")
+    .update({
+      name,
+      slug: finalSlug,
+      description,
+      parent_id: parent_id || null,
+      level,
+      display_order,
+      status,
+      image_url,
+      meta_title,
+      meta_description,
+    })
+    .eq("id", categoryId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/categories");
+  revalidatePath(`/dashboard/categories/${categoryId}`);
+  return { success: true };
 }
 
 /**

@@ -97,6 +97,60 @@ export type Database = {
           },
         ]
       }
+      seo_metadata: {
+        Row: {
+          id: string
+          entity_type: string
+          entity_id: string
+          meta_title: string | null
+          meta_description: string | null
+          og_title: string | null
+          og_description: string | null
+          og_image: string | null
+          canonical_url: string | null
+          robots: string | null
+          structured_data: Json | null
+          readability_score: number | null
+          seo_score: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          entity_type: string
+          entity_id: string
+          meta_title?: string | null
+          meta_description?: string | null
+          og_title?: string | null
+          og_description?: string | null
+          og_image?: string | null
+          canonical_url?: string | null
+          robots?: string | null
+          structured_data?: Json | null
+          readability_score?: number | null
+          seo_score?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          entity_type?: string
+          entity_id?: string
+          meta_title?: string | null
+          meta_description?: string | null
+          og_title?: string | null
+          og_description?: string | null
+          og_image?: string | null
+          canonical_url?: string | null
+          robots?: string | null
+          structured_data?: Json | null
+          readability_score?: number | null
+          seo_score?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           created_at: string | null
@@ -225,7 +279,7 @@ export type Database = {
           carrier: string | null
           coupon_code: string | null
           created_at: string | null
-          customer_email: string
+          customer_email: string | null
           customer_name: string
           customer_notes: string | null
           customer_phone: string
@@ -251,12 +305,13 @@ export type Database = {
           tracking_number: string | null
           updated_at: string | null
           user_id: string | null
+          whatsapp_sent_at: string | null
         }
         Insert: {
           carrier?: string | null
           coupon_code?: string | null
           created_at?: string | null
-          customer_email: string
+          customer_email?: string | null
           customer_name: string
           customer_notes?: string | null
           customer_phone: string
@@ -282,12 +337,13 @@ export type Database = {
           tracking_number?: string | null
           updated_at?: string | null
           user_id?: string | null
+          whatsapp_sent_at?: string | null
         }
         Update: {
           carrier?: string | null
           coupon_code?: string | null
           created_at?: string | null
-          customer_email?: string
+          customer_email?: string | null
           customer_name?: string
           customer_notes?: string | null
           customer_phone?: string
@@ -313,6 +369,7 @@ export type Database = {
           tracking_number?: string | null
           updated_at?: string | null
           user_id?: string | null
+          whatsapp_sent_at?: string | null
         }
         Relationships: [
           {
@@ -333,6 +390,7 @@ export type Database = {
           meta_description: string | null
           meta_title: string | null
           published_at: string | null
+          sections: Json | null
           slug: string
           status: string | null
           template: string | null
@@ -347,6 +405,7 @@ export type Database = {
           meta_description?: string | null
           meta_title?: string | null
           published_at?: string | null
+          sections?: Json | null
           slug: string
           status?: string | null
           template?: string | null
@@ -361,6 +420,7 @@ export type Database = {
           meta_description?: string | null
           meta_title?: string | null
           published_at?: string | null
+          sections?: Json | null
           slug?: string
           status?: string | null
           template?: string | null

@@ -15,8 +15,17 @@ export const pageInsertSchema = z.object({
     .enum(["draft", "published", "archived"])
     .default("draft")
     .optional(),
-  created_by: z.string().uuid().optional().nullable(),
-  updated_by: z.string().uuid().optional().nullable(),
+  meta_title: z.string().nullable().optional(),
+  meta_description: z.string().nullable().optional(),
+  sections: z.record(z.string(), z.any()).nullable().optional(),
 });
 
-export const pageUpdateSchema = pageInsertSchema.partial();
+export const pageUpdateSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  slug: z.string().min(1).max(200).regex(/^[a-z0-9-]+$/).optional(),
+  content: z.string().nullable().optional(),
+  status: z.enum(["draft", "published", "archived"]).optional(),
+  meta_title: z.string().nullable().optional(),
+  meta_description: z.string().nullable().optional(),
+  sections: z.record(z.string(), z.any()).nullable().optional(),
+});

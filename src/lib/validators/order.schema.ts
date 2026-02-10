@@ -37,9 +37,9 @@ export const googleMapsLocationSchema = z.object({
 });
 
 export const createOrderSchema = z.object({
-  // Customer info
-  order_number: z.string().min(1, "Order Number must be added").max(200),
-  customer_name: z.string().min(2, "Name must be at least 2 characters"),
+  // Customer info (phone required; name/email optional)
+  order_number: z.string().max(200).optional(),
+  customer_name: z.string().max(200).optional().or(z.literal("")),
   customer_phone: z.string().min(10, "Please enter a valid phone number"),
   customer_email: z
     .string()
@@ -100,7 +100,8 @@ export const updateOrderSchema = z.object({
   delivery_notes: z.string().optional(),
   tracking_number: z.string().optional(),
   estimated_delivery: z.string().optional(),
-  payment_status: z.enum(["pending", "paid", "failed", "refunded"]).optional(),
+  payment_status: z.enum(["pending", "paid", "failed", "refunded", "partially_refunded"]).optional(),
+  payment_reference: z.string().optional().nullable(),
 });
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;

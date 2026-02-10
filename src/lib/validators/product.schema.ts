@@ -30,6 +30,7 @@ export const productInsertSchema = z.object({
   on_sale: z.boolean().nullable().optional(),
   weight: z.number().min(0).nullable().optional(),
   dimensions: z.any().nullable().optional(),
+  video_url: z.string().url().nullable().optional(),
   requires_shipping: z.boolean().nullable().optional(),
   shipping_class: z.string().nullable().optional(),
   meta_title: z.string().nullable().optional(),

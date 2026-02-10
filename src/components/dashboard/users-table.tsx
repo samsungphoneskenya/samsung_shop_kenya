@@ -62,7 +62,7 @@ export function UsersTable({
       } else {
         router.refresh();
       }
-    } catch (error) {
+    } catch {
       alert("Failed to update role");
     } finally {
       setUpdatingUserId(null);
@@ -76,15 +76,6 @@ export function UsersTable({
       seo_manager: "bg-green-100 text-green-800",
     };
     return badges[role as keyof typeof badges] || "bg-gray-100 text-gray-800";
-  };
-
-  const getRoleLabel = (role: string) => {
-    const labels = {
-      admin: "Admin",
-      editor: "Editor",
-      seo_manager: "SEO Manager",
-    };
-    return labels[role as keyof typeof labels] || role;
   };
 
   return (
@@ -223,13 +214,13 @@ export function UsersTable({
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm">
                         <select
-                          value={user.role}
+                          value={user?.role ?? ""}
                           onChange={(e) =>
                             handleRoleChange(user.id, e.target.value)
                           }
                           disabled={updatingUserId === user.id}
                           className={`rounded-full px-3 py-1 text-xs font-semibold ${getRoleBadge(
-                            user.role
+                            user?.role ?? ""
                           )} border-0 focus:ring-2 focus:ring-blue-500`}
                         >
                           <option value="admin">Admin</option>

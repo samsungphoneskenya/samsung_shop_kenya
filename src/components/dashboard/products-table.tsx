@@ -5,13 +5,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
-type ProductImage = Database["public"]["Tables"]["product_images"]["Row"];
-type SEOMetadata = Database["public"]["Tables"]["seo_metadata"]["Row"];
-type ProductBase = Database["public"]["Tables"]["products"]["Row"];
-type ProductWithRelations = ProductBase & {
+type ProductRow = Database["public"]["Tables"]["products"]["Row"];
+type ProductWithRelations = ProductRow & {
   category?: { name: string } | null;
-  images?: ProductImage[];
-  seo_metadata?: SEOMetadata | SEOMetadata[] | null;
 };
 
 type ProductsTableProps = {
@@ -204,7 +200,7 @@ export function ProductsTable({
                       <td className="whitespace-nowrap px-3 py-4 text-sm">
                         <span
                           className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getStatusBadge(
-                            product.status
+                            product?.status ?? ""
                           )}`}
                         >
                           {product.status}
@@ -227,7 +223,7 @@ export function ProductsTable({
                           Edit
                         </Link>
                         <Link
-                          href={`/products/${product.slug}`}
+                          href={`/product/${product.slug}`}
                           target="_blank"
                           className="text-gray-600 hover:text-gray-900"
                         >

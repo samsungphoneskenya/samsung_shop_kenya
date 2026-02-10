@@ -4,7 +4,8 @@ import { createClient } from "@/lib/db/client";
 import { getCurrentUser } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { pageInsertSchema, pageUpdateSchema } from "../validators/page.schema";
+import { pageUpdateSchema } from "../validators/page.schema";
+import type { PageSections } from "@/lib/types/page-sections";
 
 type ActionResult = {
   error?: string;
@@ -12,82 +13,41 @@ type ActionResult = {
 };
 
 /**
- * Create a new page
+ * Get a single page by slug (for site pages: home, about-us, contact-us)
  */
-export async function createPage(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  prevState: any,
-  formData: FormData
-): Promise<ActionResult> {
-  const user = await getCurrentUser();
-  if (!user) {
-    return { error: "Unauthorized" };
-  }
-
+export async function getPageBySlug(slug: string) {
   const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("pages")
+    .select("*")
+    .eq("slug", slug)
+    .single();
 
-  try {
-    // Extract and validate data
-    const data = {
-      title: formData.get("title") as string,
-      slug: formData.get("slug") as string,
-      content: (formData.get("content") as string) || null,
-      status: formData.get("status") as "draft" | "published",
-      created_by: user.id,
-      updated_by: user.id,
-    };
-
-    // Validate
-    const validated = pageInsertSchema.parse(data);
-
-    // Check if slug exists
-    const { data: existing } = await supabase
-      .from("pages")
-      .select("id")
-      .eq("slug", validated.slug)
-      .single();
-
-    if (existing) {
-      return { error: "A page with this slug already exists" };
-    }
-
-    // Create page
-    const { data: pageData, error } = await supabase
-      .from("pages")
-      .insert(validated)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // Create SEO metadata if provided
-    const metaTitle = formData.get("meta_title") as string;
-    const metaDescription = formData.get("meta_description") as string;
-    const canonicalUrl = formData.get("canonical_url") as string;
-    const robots = formData.get("robots") as string;
-
-    if (metaTitle || metaDescription || canonicalUrl || robots) {
-      await supabase.from("seo_metadata").insert({
-        entity_type: "page",
-        entity_id: pageData.id,
-        meta_title: metaTitle || null,
-        meta_description: metaDescription || null,
-        canonical_url: canonicalUrl || null,
-        robots: robots || "index, follow",
-      });
-    }
-
-    revalidatePath("/dashboard/pages");
-    redirect("/dashboard/pages");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
-    console.error("Create page error:", error);
-    return { error: error.message || "Failed to create page" };
-  }
+  if (error || !data) return null;
+  return data as typeof data & { sections: PageSections | null };
 }
 
 /**
- * Update an existing page
+ * Get all fixed site pages (home, about-us, contact-us)
+ */
+export async function getSitePages() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("pages")
+    .select("*")
+    .in("slug", ["home", "about-us", "contact-us"])
+    .order("slug");
+
+  if (error) {
+    console.error("Error fetching site pages:", error);
+    return [];
+  }
+  return (data ?? []) as (typeof data[0] & { sections: PageSections | null })[];
+}
+
+/**
+ * Update an existing page (title, meta, status, sections).
+ * Used for editing section content on fixed site pages.
  */
 export async function updatePage(
   pageId: string,
@@ -103,31 +63,26 @@ export async function updatePage(
   const supabase = await createClient();
 
   try {
-    // Extract and validate data
-    const data = {
-      title: formData.get("title") as string,
-      slug: formData.get("slug") as string,
-      content: (formData.get("content") as string) || null,
-      status: formData.get("status") as "draft" | "published",
-      updated_by: user.id,
-    };
-
-    // Validate
-    const validated = pageUpdateSchema.parse(data);
-
-    // Check if slug is taken by another page
-    const { data: existing } = await supabase
-      .from("pages")
-      .select("id")
-      .eq("slug", validated.slug!)
-      .neq("id", pageId)
-      .single();
-
-    if (existing) {
-      return { error: "A page with this slug already exists" };
+    const sectionsRaw = formData.get("sections") as string | null;
+    let sections: PageSections | null = null;
+    if (sectionsRaw) {
+      try {
+        sections = JSON.parse(sectionsRaw) as PageSections;
+      } catch {
+        // keep existing sections if parse fails
+      }
     }
 
-    // Update page
+    const data = {
+      title: (formData.get("title") as string) || undefined,
+      status: (formData.get("status") as "draft" | "published") || undefined,
+      meta_title: (formData.get("meta_title") as string) || null,
+      meta_description: (formData.get("meta_description") as string) || null,
+      ...(sections !== null && { sections }),
+    };
+
+    const validated = pageUpdateSchema.parse(data);
+
     const { error } = await supabase
       .from("pages")
       .update(validated)
@@ -135,57 +90,22 @@ export async function updatePage(
 
     if (error) throw error;
 
-    // Update or create SEO metadata
-    const metaTitle = formData.get("meta_title") as string;
-    const metaDescription = formData.get("meta_description") as string;
-    const canonicalUrl = formData.get("canonical_url") as string;
-    const robots = formData.get("robots") as string;
-
-    if (metaTitle || metaDescription || canonicalUrl || robots) {
-      const { data: existingSeo } = await supabase
-        .from("seo_metadata")
-        .select("id")
-        .eq("entity_type", "page")
-        .eq("entity_id", pageId)
-        .single();
-
-      if (existingSeo) {
-        // Update existing
-        await supabase
-          .from("seo_metadata")
-          .update({
-            meta_title: metaTitle || null,
-            meta_description: metaDescription || null,
-            canonical_url: canonicalUrl || null,
-            robots: robots || "index, follow",
-          })
-          .eq("id", existingSeo.id);
-      } else {
-        // Create new
-        await supabase.from("seo_metadata").insert({
-          entity_type: "page",
-          entity_id: pageId,
-          meta_title: metaTitle || null,
-          meta_description: metaDescription || null,
-          canonical_url: canonicalUrl || null,
-          robots: robots || "index, follow",
-        });
-      }
-    }
-
     revalidatePath("/dashboard/pages");
-    revalidatePath(`/dashboard/pages/${pageId}`);
+    revalidatePath(`/dashboard/pages/[slug]`);
+    revalidatePath("/");
+    revalidatePath("/about-us");
+    revalidatePath("/contact-us");
 
     return { success: true };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
-    console.error("Update page error:", error);
-    return { error: error.message || "Failed to update page" };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to update page";
+    console.error("Update page error:", err);
+    return { error: message };
   }
 }
 
 /**
- * Delete a page
+ * Delete a page (only for non-fixed pages if you add custom pages later)
  */
 export async function deletePage(pageId: string) {
   const user = await getCurrentUser();

@@ -12,10 +12,9 @@ export default async function EditProductPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  // Fetch product with images (seo_metadata has no FK to products, fetch separately)
   const { data: product, error } = await supabase
     .from("products")
-    .select("*, images:product_images(*)")
+    .select("*")
     .eq("id", id)
     .single();
 
@@ -23,17 +22,6 @@ export default async function EditProductPage({
     notFound();
   }
 
-  // Fetch seo_metadata separately (polymorphic: entity_type + entity_id)
-  const { data: seoMetadata } = await supabase
-    .from("seo_metadata")
-    .select("*")
-    .eq("entity_type", "product")
-    .eq("entity_id", id)
-    .maybeSingle();
-
-  const productWithSeo = { ...product, seo_metadata: seoMetadata };
-
-  // Fetch categories for dropdown
   const { data: categories } = await supabase
     .from("categories")
     .select("id, name")
@@ -44,11 +32,11 @@ export default async function EditProductPage({
       <div className="mb-8">
         <h1 className="text-2xl font-semibold text-gray-900">Edit Product</h1>
         <p className="mt-2 text-sm text-gray-700">
-          Update product information, pricing, and SEO settings.
+          Update product information, pricing, images, and SEO.
         </p>
       </div>
 
-      <ProductForm product={productWithSeo} categories={categories || []} />
+      <ProductForm product={product} categories={categories || []} />
     </div>
   );
 }

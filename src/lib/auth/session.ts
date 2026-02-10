@@ -66,7 +66,7 @@ export async function requireRole(allowedRoles: string[]) {
     redirect("/login");
   }
 
-  if (!allowedRoles.includes(profile.role)) {
+  if (!allowedRoles.includes(profile?.role ?? "")) {
     redirect("/unauthorized");
   }
 
@@ -107,7 +107,7 @@ export async function hasPermission(permission: string): Promise<boolean> {
     ],
   };
 
-  const rolePermissions = permissions[profile.role] || [];
+  const rolePermissions = permissions[profile?.role ?? "editor"] || [];
 
   return rolePermissions.includes("*") || rolePermissions.includes(permission);
 }

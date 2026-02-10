@@ -1,10 +1,11 @@
 "use client";
 
 import { ShoppingCart, Star } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
+import { SafeImage } from "@/components/shared/SafeImage";
 import type { ReactNode } from "react";
 import type { StorefrontProduct } from "@/lib/actions/storefront-actions";
+import { useCart } from "@/contexts/CartContext";
 
 const PLACEHOLDER_IMAGE = "/images/logo.png";
 
@@ -60,6 +61,7 @@ export default function ProductCard({
   badgeRight,
   variant = "default",
 }: ProductCardProps) {
+  const { addItem } = useCart();
   const imageUrl = productImageUrl(product);
   const description =
     product.short_description || product.description || "";
@@ -99,7 +101,7 @@ export default function ProductCard({
           <div
             className={`bg-gradient-to-br from-gray-50 to-gray-100 ${imageHeight} flex items-center justify-center relative overflow-hidden p-4`}
           >
-            <Image
+            <SafeImage
               src={imageUrl}
               alt={product.title}
               width={600}
@@ -158,7 +160,15 @@ export default function ProductCard({
           type="button"
           onClick={(e) => {
             e.preventDefault();
-            alert("Feature coming soon");
+            addItem({
+              id: product.id,
+              product_id: product.id,
+              title: product.title,
+              slug: product.slug,
+              price: product.compare_at_price && product.compare_at_price > product.price ? product.compare_at_price : product.price,
+              sale_price: product.compare_at_price && product.compare_at_price > product.price ? product.price : undefined,
+              image: imageUrl,
+            });
           }}
           className="w-full bg-black text-white py-2.5 sm:py-3 rounded-xl hover:bg-gray-800 transition-all font-semibold text-sm sm:text-base flex items-center justify-center gap-2 shadow-lg"
           aria-label={`Add ${product.title} to cart`}

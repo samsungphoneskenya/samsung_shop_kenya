@@ -3,6 +3,7 @@
 import { signup } from "@/lib/auth/actions";
 import { useFormStatus } from "react-dom";
 import { useActionState, useState } from "react";
+import Link from "next/link";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -131,9 +132,9 @@ export function SignupForm() {
         />
         <label htmlFor="terms" className="ml-2 block text-sm text-gray-900">
           I agree to the{" "}
-          <a href="/terms" className="text-blue-600 hover:text-blue-500">
+          <Link href="/terms" className="text-blue-600 hover:text-blue-500">
             Terms and Conditions
-          </a>
+          </Link>
         </label>
       </div>
 

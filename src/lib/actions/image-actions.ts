@@ -6,232 +6,307 @@ import { revalidatePath } from "next/cache";
 import sharp from "sharp";
 
 type ImageActionResult = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  data?: any;
+  data?: { url: string; featured_image?: string; gallery_images?: string[] };
   error?: string;
 };
 
+const BUCKET = "product-images";
+const CATEGORY_BUCKET = "category-images";
+const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+const CATEGORY_MAX_SIZE = 3 * 1024 * 1024; // 3MB per migration
+
 /**
- * Upload and optimize product image
+ * Upload product image to storage and optionally update product's featured_image / gallery_images
  */
 export async function uploadProductImage(
   formData: FormData
 ): Promise<ImageActionResult> {
   const user = await getCurrentUser();
-  if (!user) {
-    return { error: "Unauthorized" };
+  if (!user) return { error: "Unauthorized" };
+
+  const file = formData.get("file") as File | null;
+  const productId = formData.get("productId") as string;
+  const setAsFeatured = formData.get("isPrimary") === "true";
+
+  if (!file || !productId) return { error: "Missing file or product ID" };
+
+  if (file.size > MAX_SIZE) {
+    return { error: "Image is too large. Maximum size is 5MB." };
   }
 
   const supabase = await createClient();
 
   try {
-    const file = formData.get("file") as File | null;
-    const productId = formData.get("productId") as string;
-    const imageId = formData.get("imageId") as string | null;
-
-    // If imageId is provided, this is a "set primary" request
-    if (imageId && !file) {
-      // Set all images for this product to not primary
-      await supabase
-        .from("product_images")
-        .update({ is_primary: false })
-        .eq("product_id", productId);
-
-      // Set the selected image as primary
-      const { error } = await supabase
-        .from("product_images")
-        .update({ is_primary: true })
-        .eq("id", imageId);
-
-      if (error) throw error;
-
-      revalidatePath(`/dashboard/products/${productId}`);
-      return { data: { success: true } };
-    }
-
-    if (!file) {
-      return { error: "No file provided" };
-    }
-
-    // Convert file to buffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Optimize image with sharp
     const optimizedBuffer = await sharp(buffer)
-      .resize(1200, 1200, {
-        fit: "inside",
-        withoutEnlargement: true,
-      })
-      .jpeg({ quality: 85, progressive: true })
+      .resize(1200, 1200, { fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 85 })
       .toBuffer();
 
-    // Generate thumbnail
-    const thumbnailBuffer = await sharp(buffer)
-      .resize(400, 400, {
-        fit: "cover",
-      })
-      .jpeg({ quality: 80 })
-      .toBuffer();
-
-    // Generate unique filename
     const timestamp = Date.now();
-    const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const mainFilename = `${productId}/${timestamp}-${sanitizedName}`;
-    const thumbFilename = `${productId}/${timestamp}-thumb-${sanitizedName}`;
+    const ext = "webp";
+    const mainFilename = `${productId}/featured-${timestamp}.${ext}`;
+    const galleryFilename = `${productId}/gallery-${timestamp}.${ext}`;
+    const filename = setAsFeatured ? mainFilename : galleryFilename;
 
-    // Upload main image to Supabase Storage
     const { error: uploadError } = await supabase.storage
-      .from("product-images")
-      .upload(mainFilename, optimizedBuffer, {
-        contentType: "image/jpeg",
+      .from(BUCKET)
+      .upload(filename, optimizedBuffer, {
+        contentType: "image/webp",
         cacheControl: "3600",
         upsert: false,
       });
 
     if (uploadError) throw uploadError;
 
-    // Upload thumbnail
-    await supabase.storage
-      .from("product-images")
-      .upload(thumbFilename, thumbnailBuffer, {
-        contentType: "image/jpeg",
-        cacheControl: "3600",
-        upsert: false,
-      });
+    const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(filename);
+    const url = urlData.publicUrl;
 
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from("product-images")
-      .getPublicUrl(mainFilename);
-
-    // Save to database
-    const position = parseInt(formData.get("position") as string) || 0;
-    const isPrimary = formData.get("isPrimary") === "true";
-
-    const { data: imageRecord, error: dbError } = await supabase
-      .from("product_images")
-      .insert({
-        product_id: productId,
-        url: urlData.publicUrl,
-        alt_text: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
-        position,
-        is_primary: isPrimary,
-      })
-      .select()
+    // Update product: set featured_image and/or append to gallery_images
+    const { data: product } = await supabase
+      .from("products")
+      .select("featured_image, gallery_images")
+      .eq("id", productId)
       .single();
 
-    if (dbError) throw dbError;
+    const currentGallery = (product?.gallery_images ?? []).filter(Boolean);
+    const newGallery = setAsFeatured ? [url, ...currentGallery] : [...currentGallery, url];
+    const featured_image = setAsFeatured ? url : (product?.featured_image ?? url);
+
+    const { error: updateError } = await supabase
+      .from("products")
+      .update({
+        featured_image: featured_image || null,
+        gallery_images: newGallery.length ? newGallery : null,
+      })
+      .eq("id", productId);
+
+    if (updateError) throw updateError;
 
     revalidatePath(`/dashboard/products/${productId}`);
-    return { data: imageRecord };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
-    console.error("Upload error:", error);
-    return { error: error.message || "Failed to upload image" };
+    return { data: { url, featured_image, gallery_images: newGallery } };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to upload image";
+    console.error("Upload error:", err);
+    return { error: message };
   }
 }
 
 /**
- * Delete product image
+ * Set product's featured image by URL (must already be in gallery or featured)
  */
-export async function deleteProductImage(imageId: string): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user) {
-    throw new Error("Unauthorized");
-  }
-
-  const supabase = await createClient();
-
-  // Get image info
-  const { data: image, error: fetchError } = await supabase
-    .from("product_images")
-    .select("url, product_id")
-    .eq("id", imageId)
-    .single();
-
-  if (fetchError) throw fetchError;
-
-  // Extract filename from URL
-  const url = new URL(image.url);
-  const pathParts = url.pathname.split("/");
-  const filename = pathParts[pathParts.length - 1];
-  const productId = pathParts[pathParts.length - 2];
-  const filePath = `${productId}/${filename}`;
-
-  // Delete from storage
-  await supabase.storage.from("product-images").remove([filePath]);
-
-  // Try to delete thumbnail
-  const thumbPath = filePath.replace(/(\d+-)/, "$1thumb-");
-  await supabase.storage.from("product-images").remove([thumbPath]);
-
-  // Delete from database
-  const { error: deleteError } = await supabase
-    .from("product_images")
-    .delete()
-    .eq("id", imageId);
-
-  if (deleteError) throw deleteError;
-
-  revalidatePath(`/dashboard/products/${image.product_id}`);
-}
-
-/**
- * Update image alt text
- */
-export async function updateImageAltText(
-  imageId: string,
-  altText: string
-): Promise<ImageActionResult> {
-  const user = await getCurrentUser();
-  if (!user) {
-    return { error: "Unauthorized" };
-  }
-
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from("product_images")
-    .update({ alt_text: altText })
-    .eq("id", imageId)
-    .select()
-    .single();
-
-  if (error) {
-    return { error: error.message };
-  }
-
-  return { data };
-}
-
-/**
- * Reorder images
- */
-export async function reorderImages(
+export async function setProductFeaturedImage(
   productId: string,
-  imageIds: string[]
+  imageUrl: string
 ): Promise<ImageActionResult> {
   const user = await getCurrentUser();
-  if (!user) {
-    return { error: "Unauthorized" };
+  if (!user) return { error: "Unauthorized" };
+
+  const supabase = await createClient();
+
+  try {
+    const { data: product, error: fetchError } = await supabase
+      .from("products")
+      .select("featured_image, gallery_images")
+      .eq("id", productId)
+      .single();
+
+    if (fetchError || !product) return { error: "Product not found" };
+
+    const gallery = (product.gallery_images ?? []).filter(Boolean);
+    if (!gallery.includes(imageUrl) && product.featured_image !== imageUrl) {
+      return { error: "Image not found for this product" };
+    }
+
+    const newGallery = [imageUrl, ...gallery.filter((u) => u !== imageUrl)];
+
+    const { error: updateError } = await supabase
+      .from("products")
+      .update({
+        featured_image: imageUrl,
+        gallery_images: newGallery.length ? newGallery : [imageUrl],
+      })
+      .eq("id", productId);
+
+    if (updateError) throw updateError;
+
+    revalidatePath(`/dashboard/products/${productId}`);
+    return { data: { url: imageUrl, featured_image: imageUrl, gallery_images: newGallery } };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to set primary image";
+    return { error: message };
+  }
+}
+
+/**
+ * Delete product image by URL: remove from storage and from product's featured_image / gallery_images
+ */
+export async function deleteProductImage(
+  productId: string,
+  imageUrl: string
+): Promise<ImageActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Unauthorized" };
+
+  const supabase = await createClient();
+
+  try {
+    // Parse storage path from URL (e.g. .../object/public/product-images/productId/filename)
+    const url = new URL(imageUrl);
+    const pathMatch = url.pathname.match(new RegExp(`${BUCKET}/(.+)`));
+    const filePath = pathMatch ? pathMatch[1] : null;
+
+    if (filePath) {
+      await supabase.storage.from(BUCKET).remove([filePath]);
+    }
+
+    const { data: product, error: fetchError } = await supabase
+      .from("products")
+      .select("featured_image, gallery_images")
+      .eq("id", productId)
+      .single();
+
+    if (fetchError || !product) return { error: "Product not found" };
+
+    const gallery = (product.gallery_images ?? []).filter((u) => u !== imageUrl);
+    const wasFeatured = product.featured_image === imageUrl;
+    const newFeatured = wasFeatured ? (gallery[0] ?? null) : product.featured_image;
+    const newGallery = gallery;
+
+    const { error: updateError } = await supabase
+      .from("products")
+      .update({
+        featured_image: newFeatured,
+        gallery_images: newGallery.length ? newGallery : null,
+      })
+      .eq("id", productId);
+
+    if (updateError) throw updateError;
+
+    revalidatePath(`/dashboard/products/${productId}`);
+    return {
+      data: {
+        url: imageUrl,
+        featured_image: newFeatured ?? undefined,
+        gallery_images: newGallery,
+      },
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to delete image";
+    return { error: message };
+  }
+}
+
+// --- Category image (single image_url) ---
+
+type CategoryImageResult = { data?: { url: string }; error?: string };
+
+/**
+ * Upload category image to storage and set category.image_url
+ */
+export async function uploadCategoryImage(
+  formData: FormData
+): Promise<CategoryImageResult> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Unauthorized" };
+
+  const file = formData.get("file") as File | null;
+  const categoryId = formData.get("categoryId") as string;
+
+  if (!file || !categoryId) return { error: "Missing file or category ID" };
+
+  if (file.size > CATEGORY_MAX_SIZE) {
+    return { error: "Image is too large. Maximum size is 3MB." };
   }
 
   const supabase = await createClient();
 
   try {
-    // Update position for each image
-    for (let i = 0; i < imageIds.length; i++) {
-      await supabase
-        .from("product_images")
-        .update({ position: i })
-        .eq("id", imageIds[i]);
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const optimizedBuffer = await sharp(buffer)
+      .resize(1200, 600, { fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 85 })
+      .toBuffer();
+
+    const { data: cat } = await supabase
+      .from("categories")
+      .select("slug")
+      .eq("id", categoryId)
+      .single();
+
+    const slug = cat?.slug ?? categoryId;
+    const timestamp = Date.now();
+    const filename = `${slug}-${timestamp}.webp`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(CATEGORY_BUCKET)
+      .upload(filename, optimizedBuffer, {
+        contentType: "image/webp",
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (uploadError) throw uploadError;
+
+    const { data: urlData } = supabase.storage
+      .from(CATEGORY_BUCKET)
+      .getPublicUrl(filename);
+    const url = urlData.publicUrl;
+
+    const { error: updateError } = await supabase
+      .from("categories")
+      .update({ image_url: url })
+      .eq("id", categoryId);
+
+    if (updateError) throw updateError;
+
+    revalidatePath(`/dashboard/categories/${categoryId}`);
+    revalidatePath("/dashboard/categories");
+    return { data: { url } };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to upload image";
+    console.error("Category upload error:", err);
+    return { error: message };
+  }
+}
+
+/**
+ * Delete category image: remove from storage and clear category.image_url
+ */
+export async function deleteCategoryImage(
+  categoryId: string,
+  imageUrl: string
+): Promise<CategoryImageResult> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Unauthorized" };
+
+  const supabase = await createClient();
+
+  try {
+    const url = new URL(imageUrl);
+    const pathMatch = url.pathname.match(new RegExp(`${CATEGORY_BUCKET}/(.+)`));
+    const filePath = pathMatch ? pathMatch[1] : null;
+
+    if (filePath) {
+      await supabase.storage.from(CATEGORY_BUCKET).remove([filePath]);
     }
 
-    revalidatePath(`/dashboard/products/${productId}`);
-    return { data: { success: true } };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
-    return { error: error.message };
+    const { error } = await supabase
+      .from("categories")
+      .update({ image_url: null })
+      .eq("id", categoryId);
+
+    if (error) throw error;
+
+    revalidatePath(`/dashboard/categories/${categoryId}`);
+    revalidatePath("/dashboard/categories");
+    return { data: { url: imageUrl } };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to delete image";
+    return { error: message };
   }
 }

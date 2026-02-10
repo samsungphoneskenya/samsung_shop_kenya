@@ -3,6 +3,7 @@
 import { login } from "@/lib/auth/actions";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import Link from "next/link";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -88,12 +89,12 @@ export function LoginForm() {
         </div>
 
         <div className="text-sm">
-          <a
+          <Link
             href="/forgot-password"
             className="font-medium text-blue-600 hover:text-blue-500"
           >
             Forgot your password?
-          </a>
+          </Link>
         </div>
       </div>
 

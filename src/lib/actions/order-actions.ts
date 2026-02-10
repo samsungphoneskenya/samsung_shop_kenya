@@ -32,22 +32,23 @@ export async function createOrder(
     // Validate input
     const validated = createOrderSchema.parse(data);
 
-    // Create order
+    // Order number is set by DB trigger if empty
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .insert({
-        order_number: validated.order_number,
-        customer_name: validated.customer_name,
+        order_number: validated.order_number || "",
+        customer_name: validated.customer_name || "Customer",
         customer_phone: validated.customer_phone,
-        customer_email: validated.customer_email || null,
+        customer_email: (validated.customer_email && validated.customer_email.trim()) || null,
         delivery_location: validated.delivery_location,
-        delivery_lat: validated.delivery_lat || null,
-        delivery_lng: validated.delivery_lng || null,
+        delivery_lat: validated.delivery_lat ?? null,
+        delivery_lng: validated.delivery_lng ?? null,
         delivery_place_id: validated.delivery_place_id || null,
         delivery_notes: validated.delivery_notes || null,
         subtotal: validated.subtotal,
-        tax: validated.tax,
-        shipping_fee: validated.shipping_fee,
+        discount_amount: 0,
+        tax_amount: validated.tax ?? 0,
+        shipping_fee: validated.shipping_fee ?? 0,
         total: validated.total,
         payment_method: validated.payment_method,
         status: "pending",
@@ -77,12 +78,16 @@ export async function createOrder(
 
     if (itemsError) throw itemsError;
 
-    // Update product quantities
+    // Update product quantities (skip if RPC fails e.g. no track_inventory)
     for (const item of validated.items) {
-      await supabase.rpc("decrement_product_quantity", {
-        product_id: item.product_id,
-        quantity_to_remove: item.quantity,
-      });
+      try {
+        await supabase.rpc("decrement_product_quantity", {
+          product_id: item.product_id,
+          quantity_to_remove: item.quantity,
+        });
+      } catch {
+        // Product may not track inventory; order still valid
+      }
     }
 
     return {
@@ -213,8 +218,8 @@ export async function cancelOrder(orderId: string): Promise<ActionResult> {
     if (items) {
       for (const item of items) {
         await supabase.rpc("increment_product_quantity", {
-          product_id: item.product_id,
-          quantity_to_add: item.quantity,
+          product_id: item.product_id ?? "",
+          quantity_to_add: item.quantity ?? 0,
         });
       }
     }
@@ -230,6 +235,56 @@ export async function cancelOrder(orderId: string): Promise<ActionResult> {
       error: error.message || "Failed to cancel order",
     };
   }
+}
+
+/**
+ * Confirm M-Pesa payment (dashboard): set payment_status to paid and optional reference
+ */
+export async function confirmOrderPayment(
+  orderId: string,
+  paymentReference?: string | null
+): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Unauthorized" };
+
+  const supabase = await createClient();
+
+  const updates: { payment_status: string; payment_reference?: string | null } = {
+    payment_status: "paid",
+    payment_reference: paymentReference ?? null,
+  };
+
+  const { error } = await supabase
+    .from("orders")
+    .update(updates)
+    .eq("id", orderId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/orders");
+  revalidatePath(`/dashboard/orders/${orderId}`);
+  return { success: true };
+}
+
+/**
+ * Mark WhatsApp notification as sent (stub: in future call WhatsApp API)
+ */
+export async function sendOrderWhatsApp(orderId: string): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Unauthorized" };
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("orders")
+    .update({ whatsapp_sent_at: new Date().toISOString() })
+    .eq("id", orderId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/orders");
+  revalidatePath(`/dashboard/orders/${orderId}`);
+  return { success: true };
 }
 
 /**

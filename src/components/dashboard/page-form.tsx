@@ -1,194 +1,73 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
-import { useActionState, useState } from "react";
-import { createPage, updatePage, deletePage } from "@/lib/actions/page-actions";
+import { useActionState, useState, useCallback } from "react";
+import { updatePage } from "@/lib/actions/page-actions";
 import { Database } from "@/types/database.types";
 import Link from "next/link";
+import type {
+  HomeSections,
+  AboutSections,
+  ContactSections,
+  PageSections,
+} from "@/lib/types/page-sections";
 
-type SEOMetadata = Database["public"]["Tables"]["seo_metadata"]["Row"];
-type PageTypes = Database["public"]["Tables"]["pages"]["Row"];
+type PageRow = Database["public"]["Tables"]["pages"]["Row"];
 
-function SubmitButton({ isNew }: { isNew: boolean }) {
+function SubmitButton() {
   const { pending } = useFormStatus();
-
   return (
     <button
       type="submit"
       disabled={pending}
       className="inline-flex justify-center items-center gap-2 rounded-lg border border-transparent bg-blue-600 py-2.5 px-5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
     >
-      {pending ? "Saving..." : isNew ? "Create Page" : "Update Page"}
+      {pending ? "Saving..." : "Save changes"}
     </button>
   );
 }
 
 type PageFormProps = {
-  page?: PageTypes;
-  meta_data?: SEOMetadata | null;
+  page: PageRow;
 };
 
-type FormData = {
-  title: string;
-  slug: string;
-  content: string;
-  status: string;
-  meta_title: string;
-  meta_description: string;
-  canonical_url: string;
-  robots: string;
-};
-
-export function PageForm({ page, meta_data }: PageFormProps) {
-  const isNew = !page;
-  const [activeTab, setActiveTab] = useState("content");
-
-  const action = isNew ? createPage : updatePage.bind(null, page!.id);
-  const [state, formAction] = useActionState(action, undefined);
-
-  // Initialize form data state
-  const [formData, setFormData] = useState<FormData>({
-    title: page?.title || "",
-    slug: page?.slug || "",
-    content: page?.content || "",
-    status: page?.status || "draft",
-    meta_title: meta_data?.meta_title || "",
-    meta_description: meta_data?.meta_description || "",
-    canonical_url: meta_data?.canonical_url || "",
-    robots: meta_data?.robots || "index, follow",
+export function PageForm({ page }: PageFormProps) {
+  const [activeTab, setActiveTab] = useState("sections");
+  const [formData, setFormData] = useState({
+    title: page.title ?? "",
+    status: (page.status as string) ?? "published",
+    meta_title: page.meta_title ?? "",
+    meta_description: page.meta_description ?? "",
+    sections: (page.sections as PageSections) ?? {},
   });
 
-  // Track validation errors
-  const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>(
-    {}
-  );
+  const action = updatePage.bind(null, page.id);
+  const [state, formAction] = useActionState(action, undefined);
 
-  // Generate slug from title
-  const generateSlug = (title: string) => {
-    return title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-  };
-
-  const handleInputChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
-  ) => {
-    const { name, value } = e.target;
-
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-
-    // Auto-generate slug from title for new pages
-    if (name === "title" && isNew) {
-      setFormData((prev) => ({
-        ...prev,
-        slug: generateSlug(value),
-      }));
-    }
-
-    // Clear error when user types
-    if (errors[name as keyof FormData]) {
-      setErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors[name as keyof FormData];
-        return newErrors;
-      });
-    }
-  };
-
-  // Validate current tab
-  const validateTab = (tab: string): boolean => {
-    const newErrors: Partial<Record<keyof FormData, string>> = {};
-
-    if (tab === "content") {
-      if (!formData.title.trim()) {
-        newErrors.title = "Page title is required";
+  const updateSections = useCallback((path: string, value: unknown) => {
+    setFormData((prev) => {
+      const next = { ...prev, sections: { ...prev.sections } };
+      const keys = path.split(".");
+      let target: Record<string, unknown> = next.sections as Record<string, unknown>;
+      for (let i = 0; i < keys.length - 1; i++) {
+        const k = keys[i];
+        const existing = (target[k] && typeof target[k] === "object" && !Array.isArray(target[k]))
+          ? (target[k] as Record<string, unknown>)
+          : {};
+        const t = { ...existing };
+        target[k] = t;
+        target = t;
       }
-      if (!formData.slug.trim()) {
-        newErrors.slug = "URL slug is required";
-      }
-      if (!formData.status) {
-        newErrors.status = "Status is required";
-      }
-    }
+      target[keys[keys.length - 1]] = value;
+      return next;
+    });
+  }, []);
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  // Check if all required fields are filled
-  const isFormValid = (): boolean => {
-    return (
-      formData.title.trim() !== "" &&
-      formData.slug.trim() !== "" &&
-      formData.status !== ""
-    );
-  };
-
-  const handleTabChange = (tab: string) => {
-    // Don't validate when going back
-    if (tab === "content") {
-      setActiveTab(tab);
-      return;
-    }
-
-    // Validate current tab before moving forward
-    if (validateTab(activeTab)) {
-      setActiveTab(tab);
-    }
-  };
-
-  const handleNext = () => {
-    if (activeTab === "content" && validateTab("content")) {
-      setActiveTab("seo");
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!page || !confirm("Are you sure you want to delete this page?")) {
-      return;
-    }
-
-    await deletePage(page.id);
-  };
-
-  // Markdown formatting helpers
-  const insertMarkdown = (
-    before: string,
-    after: string = "",
-    defaultText: string = ""
-  ) => {
-    const textarea = document.getElementById("content") as HTMLTextAreaElement;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = textarea.value;
-    const selectedText = text.substring(start, end) || defaultText;
-
-    const newValue =
-      text.substring(0, start) +
-      before +
-      selectedText +
-      after +
-      text.substring(end);
-
-    setFormData((prev) => ({ ...prev, content: newValue }));
-
-    // Set cursor position after insertion
-    setTimeout(() => {
-      textarea.focus();
-      const newPosition =
-        start + before.length + selectedText.length + after.length;
-      textarea.setSelectionRange(newPosition, newPosition);
-    }, 0);
-  };
+  const slug = page.slug as "home" | "about-us" | "contact-us";
+  const sections = formData.sections as Record<string, unknown>;
 
   const tabConfig = [
-    { id: "content", label: "Content", icon: "📝" },
+    { id: "sections", label: "Sections", icon: "📝" },
     { id: "seo", label: "SEO", icon: "🔍" },
   ];
 
@@ -202,417 +81,153 @@ export function PageForm({ page, meta_data }: PageFormProps) {
           </div>
         </div>
       )}
-
       {state?.success && (
         <div className="mb-6 rounded-lg bg-green-50 border border-green-200 p-4">
           <div className="flex items-center">
             <span className="text-green-400 text-xl mr-3">✓</span>
-            <div className="text-sm text-green-800">
-              Page saved successfully!
-            </div>
+            <div className="text-sm text-green-800">Page saved successfully!</div>
           </div>
         </div>
       )}
 
-      {/* Enhanced Tabs */}
       <div className="mb-8">
-        <div className="border-b border-gray-200 bg-white rounded-t-lg">
-          <nav className="-mb-px flex" aria-label="Tabs">
-            {tabConfig.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => handleTabChange(tab.id)}
-                className={`${
-                  activeTab === tab.id
-                    ? "border-blue-500 text-blue-600 bg-blue-50"
-                    : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
-                } hover:bg-gray-50 flex-1 whitespace-nowrap border-b-2 py-4 px-6 text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2`}
-              >
-                <span className="text-base">{tab.icon}</span>
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-        </div>
+        <nav className="-mb-px flex border-b border-gray-200">
+          {tabConfig.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`${
+                activeTab === tab.id
+                  ? "border-blue-500 text-blue-600 bg-blue-50"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              } flex-1 whitespace-nowrap border-b-2 py-4 px-6 text-sm font-medium flex items-center justify-center gap-2`}
+            >
+              <span>{tab.icon}</span>
+              {tab.label}
+            </button>
+          ))}
+        </nav>
       </div>
 
       <div className="space-y-6">
-        {/* Content Tab */}
-        {activeTab === "content" && (
+        {activeTab === "sections" && (
           <div className="bg-white shadow-lg sm:rounded-lg border border-gray-200">
-            <div className="px-6 py-6 sm:p-8 space-y-6">
+            <div className="px-6 py-6 sm:p-8 space-y-8">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
-                  <span className="text-xl">📝</span>
-                  Page Content
-                </h3>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="title"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Page Title <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Page title
                 </label>
                 <input
                   type="text"
                   name="title"
-                  id="title"
-                  required
                   value={formData.title}
-                  onChange={handleInputChange}
-                  className={`mt-1 block w-full rounded-lg border ${
-                    errors.title ? "border-red-300" : "border-gray-300"
-                  } shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2.5 transition-colors`}
-                  placeholder="About Us"
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, title: e.target.value }))
+                  }
+                  className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2.5 sm:text-sm"
                 />
-                {errors.title && (
-                  <p className="mt-1 text-sm text-red-600">{errors.title}</p>
-                )}
               </div>
-
               <div>
-                <label
-                  htmlFor="slug"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  URL Slug <span className="text-red-500">*</span>
-                </label>
-                <div className="mt-1 flex rounded-lg shadow-sm">
-                  <span className="inline-flex items-center rounded-l-lg border border-r-0 border-gray-300 bg-gray-50 px-4 text-gray-500 sm:text-sm font-medium">
-                    /
-                  </span>
-                  <input
-                    type="text"
-                    name="slug"
-                    id="slug"
-                    required
-                    value={formData.slug}
-                    onChange={handleInputChange}
-                    className={`block w-full min-w-0 flex-1 rounded-none rounded-r-lg border ${
-                      errors.slug ? "border-red-300" : "border-gray-300"
-                    } focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2.5 transition-colors`}
-                    placeholder="about-us"
-                  />
-                </div>
-                {errors.slug && (
-                  <p className="mt-1 text-sm text-red-600">{errors.slug}</p>
-                )}
-                <p className="mt-2 text-xs text-gray-500">
-                  URL-friendly version of the title. Auto-generated if left
-                  empty.
-                </p>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="content"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Content
-                </label>
-                <div className="border border-gray-300 rounded-lg overflow-hidden shadow-sm">
-                  {/* Enhanced Toolbar */}
-                  <div className="border-b border-gray-300 bg-gray-50 px-3 py-2.5 flex gap-1 flex-wrap">
-                    <button
-                      type="button"
-                      onClick={() => insertMarkdown("## ", "", "Heading")}
-                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-white transition-colors font-semibold"
-                      title="Heading"
-                    >
-                      H2
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => insertMarkdown("### ", "", "Heading")}
-                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-white transition-colors font-semibold"
-                      title="Subheading"
-                    >
-                      H3
-                    </button>
-                    <div className="w-px bg-gray-300 mx-1"></div>
-                    <button
-                      type="button"
-                      onClick={() => insertMarkdown("**", "**", "bold text")}
-                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-white transition-colors font-bold"
-                      title="Bold"
-                    >
-                      B
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => insertMarkdown("*", "*", "italic text")}
-                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-white transition-colors italic"
-                      title="Italic"
-                    >
-                      I
-                    </button>
-                    <div className="w-px bg-gray-300 mx-1"></div>
-                    <button
-                      type="button"
-                      onClick={() => insertMarkdown("\n- ", "", "List item")}
-                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-white transition-colors"
-                      title="Bullet List"
-                    >
-                      • List
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => insertMarkdown("\n1. ", "", "List item")}
-                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-white transition-colors"
-                      title="Numbered List"
-                    >
-                      1. List
-                    </button>
-                    <div className="w-px bg-gray-300 mx-1"></div>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        insertMarkdown("[", "](https://)", "link text")
-                      }
-                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-white transition-colors"
-                      title="Link"
-                    >
-                      🔗 Link
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => insertMarkdown("`", "`", "code")}
-                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-white transition-colors font-mono"
-                      title="Inline Code"
-                    >
-                      &lt;/&gt;
-                    </button>
-                  </div>
-
-                  {/* Textarea */}
-                  <textarea
-                    name="content"
-                    id="content"
-                    rows={18}
-                    value={formData.content}
-                    onChange={handleInputChange}
-                    className="block w-full border-0 focus:ring-0 sm:text-sm p-4 font-mono resize-none"
-                    placeholder="Write your content here... (Markdown supported)
-
-## Example Heading
-This is a paragraph with **bold** and *italic* text.
-
-- List item 1
-- List item 2
-
-[Link text](https://example.com)"
-                  />
-                </div>
-                <p className="mt-2 text-xs text-gray-500">
-                  Supports Markdown formatting. Use the toolbar or type
-                  manually.
-                </p>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="status"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Status <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Status
                 </label>
                 <select
                   name="status"
-                  id="status"
-                  required
                   value={formData.status}
-                  onChange={handleInputChange}
-                  className={`mt-1 block w-full rounded-lg border ${
-                    errors.status ? "border-red-300" : "border-gray-300"
-                  } shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2.5 transition-colors`}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, status: e.target.value }))
+                  }
+                  className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2.5 sm:text-sm"
                 >
-                  <option value="draft">📝 Draft</option>
-                  <option value="published">✅ Published</option>
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
+                  <option value="archived">Archived</option>
                 </select>
-                {errors.status && (
-                  <p className="mt-1 text-sm text-red-600">{errors.status}</p>
-                )}
               </div>
+
+              {slug === "home" && (
+                <HomeSectionEditor
+                  sections={(sections as HomeSections) || {}}
+                  onChange={updateSections}
+                />
+              )}
+              {slug === "about-us" && (
+                <AboutSectionEditor
+                  sections={(sections as AboutSections) || {}}
+                  onChange={updateSections}
+                />
+              )}
+              {slug === "contact-us" && (
+                <ContactSectionEditor
+                  sections={(sections as ContactSections) || {}}
+                  onChange={updateSections}
+                />
+              )}
             </div>
           </div>
         )}
 
-        {/* SEO Tab */}
         {activeTab === "seo" && (
           <div className="bg-white shadow-lg sm:rounded-lg border border-gray-200">
             <div className="px-6 py-6 sm:p-8 space-y-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
-                  <span className="text-xl">🔍</span>
-                  SEO Optimization
-                </h3>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="meta_title"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Meta Title
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Meta title
                 </label>
                 <input
                   type="text"
                   name="meta_title"
-                  id="meta_title"
                   maxLength={60}
                   value={formData.meta_title}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2.5 transition-colors"
-                  placeholder="Optimal length: 50-60 characters"
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, meta_title: e.target.value }))
+                  }
+                  className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2.5 sm:text-sm"
+                  placeholder="50–60 characters"
                 />
-                <div className="mt-2 flex justify-between items-center">
-                  <p className="text-xs text-gray-500">
-                    Leave empty to use page title
-                  </p>
-                  <p
-                    className={`text-xs ${
-                      formData.meta_title.length > 60
-                        ? "text-red-500"
-                        : "text-gray-500"
-                    }`}
-                  >
-                    {formData.meta_title.length}/60
-                  </p>
-                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  {formData.meta_title.length}/60
+                </p>
               </div>
-
               <div>
-                <label
-                  htmlFor="meta_description"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Meta Description
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Meta description
                 </label>
                 <textarea
                   name="meta_description"
-                  id="meta_description"
                   rows={3}
                   maxLength={160}
                   value={formData.meta_description}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2.5 transition-colors"
-                  placeholder="Optimal length: 150-160 characters"
+                  onChange={(e) =>
+                    setFormData((p) => ({
+                      ...p,
+                      meta_description: e.target.value,
+                    }))
+                  }
+                  className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2.5 sm:text-sm"
+                  placeholder="150–160 characters"
                 />
-                <div className="mt-2 flex justify-between items-center">
-                  <p className="text-xs text-gray-500">
-                    This appears in search results
-                  </p>
-                  <p
-                    className={`text-xs ${
-                      formData.meta_description.length > 160
-                        ? "text-red-500"
-                        : "text-gray-500"
-                    }`}
-                  >
-                    {formData.meta_description.length}/160
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="canonical_url"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Canonical URL
-                </label>
-                <input
-                  type="url"
-                  name="canonical_url"
-                  id="canonical_url"
-                  value={formData.canonical_url}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2.5 transition-colors"
-                  placeholder="https://yourdomain.com/page-name"
-                />
-                <p className="mt-2 text-xs text-gray-500">
-                  Leave empty to use the default URL for this page.
-                </p>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="robots"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Robots Directive
-                </label>
-                <select
-                  name="robots"
-                  id="robots"
-                  value={formData.robots}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2.5 transition-colors"
-                >
-                  <option value="index, follow">
-                    ✅ Index, Follow (Default)
-                  </option>
-                  <option value="noindex, follow">🚫 No Index, Follow</option>
-                  <option value="index, nofollow">✅ Index, No Follow</option>
-                  <option value="noindex, nofollow">
-                    🚫 No Index, No Follow
-                  </option>
-                </select>
-                <p className="mt-2 text-xs text-gray-500">
-                  Control how search engines index this page.
+                <p className="mt-1 text-xs text-gray-500">
+                  {formData.meta_description.length}/160
                 </p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Action Buttons */}
-        <div className="flex items-center justify-between bg-white border border-gray-200 px-6 py-4 sm:rounded-lg shadow-lg">
-          <div>
-            {!isNew && (
-              <button
-                type="button"
-                onClick={handleDelete}
-                className="inline-flex justify-center items-center gap-2 rounded-lg border border-transparent bg-red-600 py-2.5 px-5 text-sm font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
-              >
-                <span>🗑️</span>
-                Delete Page
-              </button>
-            )}
-          </div>
-          <div className="flex gap-3">
-            <Link
-              href="/dashboard/pages"
-              className="inline-flex justify-center rounded-lg border border-gray-300 bg-white py-2.5 px-5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-            >
-              Cancel
-            </Link>
-
-            {/* Show Next button if on content tab and form not complete */}
-            {activeTab === "content" && !isFormValid() && (
-              <button
-                type="button"
-                onClick={handleNext}
-                className="inline-flex justify-center items-center gap-2 rounded-lg border border-transparent bg-blue-600 py-2.5 px-5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-              >
-                Next
-                <span>→</span>
-              </button>
-            )}
-
-            {/* Show Submit button only when form is valid or when editing */}
-            {(isFormValid() || !isNew) && <SubmitButton isNew={isNew} />}
-          </div>
+        <div className="flex justify-between bg-white border border-gray-200 px-6 py-4 rounded-lg">
+          <Link
+            href="/dashboard/pages"
+            className="rounded-lg border border-gray-300 bg-white py-2.5 px-5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Cancel
+          </Link>
+          <SubmitButton />
         </div>
       </div>
 
-      {/* Hidden inputs to preserve form data */}
       <input type="hidden" name="title" value={formData.title} />
-      <input type="hidden" name="slug" value={formData.slug} />
-      <input type="hidden" name="content" value={formData.content} />
       <input type="hidden" name="status" value={formData.status} />
       <input type="hidden" name="meta_title" value={formData.meta_title} />
       <input
@@ -622,10 +237,464 @@ This is a paragraph with **bold** and *italic* text.
       />
       <input
         type="hidden"
-        name="canonical_url"
-        value={formData.canonical_url}
+        name="sections"
+        value={JSON.stringify(formData.sections)}
       />
-      <input type="hidden" name="robots" value={formData.robots} />
     </form>
+  );
+}
+
+// ---- Section editors (each updates sections via path + value) ----
+
+function Field({
+  label,
+  name,
+  value,
+  onChange,
+  path,
+  multiline,
+  placeholder,
+}: {
+  label: string;
+  name?: string;
+  value: string;
+  onChange: (path: string, value: unknown) => void;
+  path: string;
+  multiline?: boolean;
+  placeholder?: string;
+}) {
+  const v = value ?? "";
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
+      </label>
+      {multiline ? (
+        <textarea
+          value={v}
+          onChange={(e) => onChange(path, e.target.value)}
+          rows={3}
+          className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2.5 sm:text-sm"
+          placeholder={placeholder}
+        />
+      ) : (
+        <input
+          type="text"
+          name={name}
+          value={v}
+          onChange={(e) => onChange(path, e.target.value)}
+          className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2.5 sm:text-sm"
+          placeholder={placeholder}
+        />
+      )}
+    </div>
+  );
+}
+
+function HomeSectionEditor({
+  sections,
+  onChange,
+}: {
+  sections: HomeSections;
+  onChange: (path: string, value: unknown) => void;
+}) {
+  const hero = sections.hero ?? {};
+  const stats = hero.stats ?? [
+    { value: "", label: "" },
+    { value: "", label: "" },
+    { value: "", label: "" },
+  ];
+  return (
+    <div className="space-y-6 border-t border-gray-200 pt-6">
+      <h3 className="text-lg font-semibold text-gray-900">Hero section</h3>
+      <Field
+        label="Heading (highlight word goes in next field)"
+        value={hero.heading ?? ""}
+        onChange={onChange}
+        path="hero.heading"
+        placeholder="Welcome to our ... Online Store!"
+      />
+      <Field
+        label="Heading highlight word"
+        value={hero.heading_highlight ?? ""}
+        onChange={onChange}
+        path="hero.heading_highlight"
+        placeholder="Samsung"
+      />
+      <Field
+        label="Subtext"
+        value={hero.subtext ?? ""}
+        onChange={onChange}
+        path="hero.subtext"
+        multiline
+      />
+      <Field
+        label="Primary button text"
+        value={hero.cta_primary_text ?? ""}
+        onChange={onChange}
+        path="hero.cta_primary_text"
+      />
+      <Field
+        label="Primary button link"
+        value={hero.cta_primary_href ?? ""}
+        onChange={onChange}
+        path="hero.cta_primary_href"
+        placeholder="/shop"
+      />
+      <Field
+        label="Secondary button text"
+        value={hero.cta_secondary_text ?? ""}
+        onChange={onChange}
+        path="hero.cta_secondary_text"
+      />
+      <Field
+        label="Secondary button link"
+        value={hero.cta_secondary_href ?? ""}
+        onChange={onChange}
+        path="hero.cta_secondary_href"
+        placeholder="/about-us"
+      />
+      <Field
+        label="Hero image URL"
+        value={hero.image_url ?? ""}
+        onChange={onChange}
+        path="hero.image_url"
+        placeholder="/images/products/s25.jpg"
+      />
+      <Field
+        label="Hero image alt"
+        value={hero.image_alt ?? ""}
+        onChange={onChange}
+        path="hero.image_alt"
+      />
+      <Field
+        label="Badge text"
+        value={hero.badge_text ?? ""}
+        onChange={onChange}
+        path="hero.badge_text"
+        placeholder="Save up to"
+      />
+      <Field
+        label="Badge value"
+        value={hero.badge_value ?? ""}
+        onChange={onChange}
+        path="hero.badge_value"
+        placeholder="30% OFF"
+      />
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Stats (3 items)
+        </label>
+        {stats.map((s, i) => (
+          <div key={i} className="flex gap-2 mb-2">
+            <input
+              type="text"
+              value={s.value}
+              onChange={(e) => {
+                const next = [...stats];
+                next[i] = { ...next[i], value: e.target.value };
+                onChange("hero.stats", next);
+              }}
+              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              placeholder="500+"
+            />
+            <input
+              type="text"
+              value={s.label}
+              onChange={(e) => {
+                const next = [...stats];
+                next[i] = { ...next[i], label: e.target.value };
+                onChange("hero.stats", next);
+              }}
+              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              placeholder="Products"
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AboutSectionEditor({
+  sections,
+  onChange,
+}: {
+  sections: AboutSections;
+  onChange: (path: string, value: unknown) => void;
+}) {
+  const hero = sections.hero ?? {};
+  const story = sections.story ?? {};
+  const values = sections.values ?? {};
+  const visit = sections.visit_us ?? {};
+  const stats = sections.stats ?? [];
+  const items = values.items ?? [];
+  const paragraphs = story.paragraphs ?? ["", "", "", ""];
+
+  return (
+    <div className="space-y-8 border-t border-gray-200 pt-6">
+      <h3 className="text-lg font-semibold text-gray-900">Hero</h3>
+      <Field label="Title" value={hero.title ?? ""} onChange={onChange} path="hero.title" />
+      <Field label="Subtitle" value={hero.subtitle ?? ""} onChange={onChange} path="hero.subtitle" multiline />
+
+      <h3 className="text-lg font-semibold text-gray-900">Stats</h3>
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="flex gap-2">
+          <input
+            type="text"
+            value={stats[i]?.number ?? ""}
+            onChange={(e) => {
+              const next = [...stats];
+              next[i] = { number: e.target.value, label: next[i]?.label ?? "" };
+              onChange("stats", next);
+            }}
+            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            placeholder="50K+"
+          />
+          <input
+            type="text"
+            value={stats[i]?.label ?? ""}
+            onChange={(e) => {
+              const next = [...stats];
+              next[i] = { number: next[i]?.number ?? "", label: e.target.value };
+              onChange("stats", next);
+            }}
+            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            placeholder="Happy Customers"
+          />
+        </div>
+      ))}
+
+      <h3 className="text-lg font-semibold text-gray-900">Our Story</h3>
+      <Field label="Section title" value={story.title ?? ""} onChange={onChange} path="story.title" />
+      {paragraphs.map((p, i) => (
+        <Field
+          key={i}
+          label={`Paragraph ${i + 1}`}
+          value={p}
+          onChange={(_path, v) => {
+            const next = [...paragraphs];
+            next[i] = v as string;
+            onChange("story.paragraphs", next);
+          }}
+          path={`story.paragraphs.${i}`}
+          multiline
+        />
+      ))}
+      <Field label="Story image URL" value={story.image_url ?? ""} onChange={onChange} path="story.image_url" />
+      <Field label="Image alt" value={story.image_alt ?? ""} onChange={onChange} path="story.image_alt" />
+      <Field label="Caption title" value={story.caption_title ?? ""} onChange={onChange} path="story.caption_title" />
+      <Field label="Caption subtitle" value={story.caption_subtitle ?? ""} onChange={onChange} path="story.caption_subtitle" />
+
+      <h3 className="text-lg font-semibold text-gray-900">Why Choose Us</h3>
+      <Field label="Section title" value={values.section_title ?? ""} onChange={onChange} path="values.section_title" />
+      <Field label="Section subtitle" value={values.section_subtitle ?? ""} onChange={onChange} path="values.section_subtitle" multiline />
+      {items.slice(0, 6).map((item, i) => (
+        <div key={i} className="rounded-lg border border-gray-200 p-4 space-y-2">
+          <span className="text-sm font-medium text-gray-500">Value {i + 1}</span>
+          <Field
+            label="Title"
+            value={item.title}
+            onChange={(_path, v) => {
+              const next = [...items];
+              next[i] = { ...next[i], title: v as string };
+              onChange("values.items", next);
+            }}
+            path="values.items"
+          />
+          <Field
+            label="Description"
+            value={item.description}
+            onChange={(_path, v) => {
+              const next = [...items];
+              next[i] = { ...next[i], description: v as string };
+              onChange("values.items", next);
+            }}
+            path="values.items"
+            multiline
+          />
+          <Field
+            label="Color (Tailwind gradient, e.g. from-gray-700 to-gray-900)"
+            value={item.color}
+            onChange={(_path, v) => {
+              const next = [...items];
+              next[i] = { ...next[i], color: v as string };
+              onChange("values.items", next);
+            }}
+            path="values.items"
+          />
+        </div>
+      ))}
+
+      <h3 className="text-lg font-semibold text-gray-900">Visit Us</h3>
+      <Field label="Title" value={visit.title ?? ""} onChange={onChange} path="visit_us.title" />
+      <Field label="Address label" value={visit.address_label ?? ""} onChange={onChange} path="visit_us.address_label" />
+      <Field label="Address (multiline)" value={visit.address_lines ?? ""} onChange={onChange} path="visit_us.address_lines" multiline />
+      <Field label="Hours label" value={visit.hours_label ?? ""} onChange={onChange} path="visit_us.hours_label" />
+      <Field label="Hours" value={visit.hours_lines ?? ""} onChange={onChange} path="visit_us.hours_lines" multiline />
+      <Field label="Contact label" value={visit.contact_label ?? ""} onChange={onChange} path="visit_us.contact_label" />
+      <Field label="Contact" value={visit.contact_lines ?? ""} onChange={onChange} path="visit_us.contact_lines" multiline />
+      <Field label="Directions title" value={visit.directions_title ?? ""} onChange={onChange} path="visit_us.directions_title" />
+      <Field label="Directions text" value={visit.directions_text ?? ""} onChange={onChange} path="visit_us.directions_text" multiline />
+      <Field label="Directions button" value={visit.directions_btn ?? ""} onChange={onChange} path="visit_us.directions_btn" />
+      <Field label="Map link" value={visit.map_link ?? ""} onChange={onChange} path="visit_us.map_link" />
+    </div>
+  );
+}
+
+function ContactSectionEditor({
+  sections,
+  onChange,
+}: {
+  sections: ContactSections;
+  onChange: (path: string, value: unknown) => void;
+}) {
+  const hero = sections.hero ?? {};
+  const methods = sections.contact_methods ?? [];
+  const formIntro = sections.form_intro ?? {};
+  const storeHours = sections.store_hours ?? {};
+  const location = sections.location ?? {};
+  const faqs = sections.faqs ?? {};
+  const whatsapp = sections.whatsapp_block ?? {};
+  const faqItems = faqs.items ?? [];
+
+  return (
+    <div className="space-y-8 border-t border-gray-200 pt-6">
+      <h3 className="text-lg font-semibold text-gray-900">Hero</h3>
+      <Field label="Title" value={hero.title ?? ""} onChange={onChange} path="hero.title" />
+      <Field label="Subtitle" value={hero.subtitle ?? ""} onChange={onChange} path="hero.subtitle" multiline />
+
+      <h3 className="text-lg font-semibold text-gray-900">Contact methods (4)</h3>
+      {[0, 1, 2, 3].map((i) => {
+        const m = methods[i] ?? {
+          title: "",
+          details: "",
+          description: "",
+          link: "",
+          color: "from-gray-700 to-gray-900",
+        };
+        return (
+          <div key={i} className="rounded-lg border border-gray-200 p-4 space-y-2">
+            <Field
+              label={`Method ${i + 1} title`}
+              value={m.title}
+              onChange={(_path, v) => {
+                const next = [...methods];
+                next[i] = { ...next[i], title: v as string };
+                onChange("contact_methods", next);
+              }}
+              path="contact_methods"
+            />
+            <Field
+              label="Details"
+              value={m.details}
+              onChange={(_path, v) => {
+                const next = [...methods];
+                next[i] = { ...next[i], details: v as string };
+                onChange("contact_methods", next);
+              }}
+              path="contact_methods"
+            />
+            <Field
+              label="Description"
+              value={m.description}
+              onChange={(_path, v) => {
+                const next = [...methods];
+                next[i] = { ...next[i], description: v as string };
+                onChange("contact_methods", next);
+              }}
+              path="contact_methods"
+            />
+            <Field
+              label="Link"
+              value={m.link}
+              onChange={(_path, v) => {
+                const next = [...methods];
+                next[i] = { ...next[i], link: v as string };
+                onChange("contact_methods", next);
+              }}
+              path="contact_methods"
+            />
+          </div>
+        );
+      })}
+
+      <h3 className="text-lg font-semibold text-gray-900">Form intro</h3>
+      <Field label="Title" value={formIntro.title ?? ""} onChange={onChange} path="form_intro.title" />
+      <Field label="Subtitle" value={formIntro.subtitle ?? ""} onChange={onChange} path="form_intro.subtitle" multiline />
+
+      <h3 className="text-lg font-semibold text-gray-900">Store hours</h3>
+      <Field label="Title" value={storeHours.title ?? ""} onChange={onChange} path="store_hours.title" />
+      {(storeHours.rows ?? []).map((row, i) => (
+        <div key={i} className="flex gap-2">
+          <input
+            type="text"
+            value={row.days}
+            onChange={(e) => {
+              const next = [...(storeHours.rows ?? [])];
+              next[i] = { ...next[i], days: e.target.value };
+              onChange("store_hours.rows", next);
+            }}
+            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            placeholder="Monday - Saturday"
+          />
+          <input
+            type="text"
+            value={row.hours}
+            onChange={(e) => {
+              const next = [...(storeHours.rows ?? [])];
+              next[i] = { ...next[i], hours: e.target.value };
+              onChange("store_hours.rows", next);
+            }}
+            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            placeholder="9:00 AM - 7:00 PM"
+          />
+        </div>
+      ))}
+
+      <h3 className="text-lg font-semibold text-gray-900">Location</h3>
+      <Field label="Title" value={location.title ?? ""} onChange={onChange} path="location.title" />
+      <Field label="Name" value={location.name ?? ""} onChange={onChange} path="location.name" />
+      <Field label="Address" value={location.address_lines ?? ""} onChange={onChange} path="location.address_lines" multiline />
+      <Field label="Map button text" value={location.map_link_text ?? ""} onChange={onChange} path="location.map_link_text" />
+      <Field label="Map link" value={location.map_link ?? ""} onChange={onChange} path="location.map_link" />
+
+      <h3 className="text-lg font-semibold text-gray-900">FAQs</h3>
+      <Field label="Section title" value={faqs.section_title ?? ""} onChange={onChange} path="faqs.section_title" />
+      <Field label="Section subtitle" value={faqs.section_subtitle ?? ""} onChange={onChange} path="faqs.section_subtitle" />
+      {faqItems.slice(0, 6).map((item, i) => (
+        <div key={i} className="rounded-lg border border-gray-200 p-4 space-y-2">
+          <Field
+            label={`Q ${i + 1}`}
+            value={item.question}
+            onChange={(_path, v) => {
+              const next = [...faqItems];
+              next[i] = { ...next[i], question: v as string };
+              onChange("faqs.items", next);
+            }}
+            path="faqs.items"
+          />
+          <Field
+            label="Answer"
+            value={item.answer}
+            onChange={(_path, v) => {
+              const next = [...faqItems];
+              next[i] = { ...next[i], answer: v as string };
+              onChange("faqs.items", next);
+            }}
+            path="faqs.items"
+            multiline
+          />
+        </div>
+      ))}
+      <Field label="CTA text" value={faqs.cta_text ?? ""} onChange={onChange} path="faqs.cta_text" />
+      <Field label="CTA button" value={faqs.cta_btn ?? ""} onChange={onChange} path="faqs.cta_btn" />
+
+      <h3 className="text-lg font-semibold text-gray-900">WhatsApp block</h3>
+      <Field label="Title" value={whatsapp.title ?? ""} onChange={onChange} path="whatsapp_block.title" />
+      <Field label="Subtitle" value={whatsapp.subtitle ?? ""} onChange={onChange} path="whatsapp_block.subtitle" />
+      <Field label="Button text" value={whatsapp.btn_text ?? ""} onChange={onChange} path="whatsapp_block.btn_text" />
+      <Field label="Link" value={whatsapp.link ?? ""} onChange={onChange} path="whatsapp_block.link" />
+    </div>
   );
 }

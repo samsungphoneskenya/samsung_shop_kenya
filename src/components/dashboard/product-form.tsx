@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
-import { useActionState, useState, useEffect } from "react";
+import { useActionState, useState } from "react";
 import {
   createProduct,
   updateProduct,
@@ -12,13 +12,7 @@ import { Database } from "@/types/database.types";
 import Link from "next/link";
 
 type Category = Database["public"]["Tables"]["categories"]["Row"];
-type ProductImage = Database["public"]["Tables"]["product_images"]["Row"];
-type SEOMetadata = Database["public"]["Tables"]["seo_metadata"]["Row"];
-type ProductBase = Database["public"]["Tables"]["products"]["Row"];
-type ProductWithRelations = ProductBase & {
-  images?: ProductImage[];
-  seo_metadata?: SEOMetadata | SEOMetadata[] | null;
-};
+type ProductRow = Database["public"]["Tables"]["products"]["Row"];
 
 function SubmitButton({ isNew }: { isNew: boolean }) {
   const { pending } = useFormStatus();
@@ -35,7 +29,7 @@ function SubmitButton({ isNew }: { isNew: boolean }) {
 }
 
 type ProductFormProps = {
-  product?: ProductWithRelations;
+  product?: ProductRow;
   categories: Pick<Category, "id" | "name">[];
 };
 
@@ -43,18 +37,29 @@ type FormData = {
   title: string;
   slug: string;
   description: string;
+  short_description: string;
   category_id: string;
   status: string;
-  featured: boolean;
+  visibility: string;
+  is_featured: boolean;
+  is_bestseller: boolean;
+  is_new_arrival: boolean;
+  on_sale: boolean;
   price: string;
   compare_at_price: string;
   cost_price: string;
   sku: string;
-  barcode: string;
   quantity: string;
+  low_stock_threshold: string;
+  track_inventory: boolean;
+  allow_backorder: boolean;
+  weight: string;
+  video_url: string;
+  requires_shipping: boolean;
+  shipping_class: string;
   meta_title: string;
   meta_description: string;
-  focus_keyword: string;
+  meta_keywords: string;
 };
 
 export function ProductForm({ product, categories }: ProductFormProps) {
@@ -64,30 +69,36 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   const action = isNew ? createProduct : updateProduct.bind(null, product!.id);
   const [state, formAction] = useActionState(action, undefined);
 
-  // Supabase can return seo_metadata as object or array
-  const rawSeo = product?.seo_metadata;
-  const seoMeta: SEOMetadata | null = Array.isArray(rawSeo)
-    ? rawSeo[0] ?? null
-    : rawSeo ?? null;
+  const initialFormData: FormData = {
+    title: product?.title ?? "",
+    slug: product?.slug ?? "",
+    description: product?.description ?? "",
+    short_description: product?.short_description ?? "",
+    category_id: product?.category_id ?? "",
+    status: product?.status ?? "draft",
+    visibility: product?.visibility ?? "visible",
+    is_featured: product?.is_featured ?? false,
+    is_bestseller: product?.is_bestseller ?? false,
+    is_new_arrival: product?.is_new_arrival ?? false,
+    on_sale: product?.on_sale ?? false,
+    price: product?.price?.toString() ?? "",
+    compare_at_price: product?.compare_at_price?.toString() ?? "",
+    cost_price: product?.cost_price?.toString() ?? "",
+    sku: product?.sku ?? "",
+    quantity: product?.quantity?.toString() ?? "0",
+    low_stock_threshold: product?.low_stock_threshold?.toString() ?? "5",
+    track_inventory: product?.track_inventory ?? true,
+    allow_backorder: product?.allow_backorder ?? false,
+    weight: product?.weight?.toString() ?? "",
+    video_url: product?.video_url ?? "",
+    requires_shipping: product?.requires_shipping ?? true,
+    shipping_class: product?.shipping_class ?? "",
+    meta_title: product?.meta_title ?? "",
+    meta_description: product?.meta_description ?? "",
+    meta_keywords: (product?.meta_keywords ?? []).join(", "),
+  };
 
-  // Initialize form data state
-  const [formData, setFormData] = useState<FormData>({
-    title: product?.title || "",
-    slug: product?.slug || "",
-    description: product?.description || "",
-    category_id: product?.category_id || "",
-    status: product?.status || "draft",
-    featured: product?.featured ?? false,
-    price: product?.price?.toString() || "",
-    compare_at_price: product?.compare_at_price?.toString() || "",
-    cost_price: product?.cost_price?.toString() || "",
-    sku: product?.sku || "",
-    barcode: product?.barcode || "",
-    quantity: product?.quantity?.toString() || "0",
-    meta_title: seoMeta?.meta_title || "",
-    meta_description: seoMeta?.meta_description || "",
-    focus_keyword: seoMeta?.focus_keyword || "",
-  });
+  const [formData, setFormData] = useState<FormData>(initialFormData);
 
   // Track validation errors
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>(
@@ -332,6 +343,24 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
               <div>
                 <label
+                  htmlFor="short_description"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Short Description
+                </label>
+                <input
+                  type="text"
+                  name="short_description"
+                  id="short_description"
+                  value={formData.short_description}
+                  onChange={handleInputChange}
+                  className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2.5 transition-colors"
+                  placeholder="Brief tagline for listings"
+                />
+              </div>
+
+              <div>
+                <label
                   htmlFor="description"
                   className="block text-sm font-medium text-gray-700 mb-1"
                 >
@@ -392,27 +421,74 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                     <option value="draft">📝 Draft</option>
                     <option value="published">✅ Published</option>
                     <option value="archived">📦 Archived</option>
+                    <option value="out_of_stock">🚫 Out of stock</option>
                   </select>
                   {errors.status && (
                     <p className="mt-1 text-sm text-red-600">{errors.status}</p>
                   )}
                 </div>
+
+                <div>
+                  <label
+                    htmlFor="visibility"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Visibility
+                  </label>
+                  <select
+                    name="visibility"
+                    id="visibility"
+                    value={formData.visibility}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2.5 transition-colors"
+                  >
+                    <option value="visible">Visible</option>
+                    <option value="hidden">Hidden</option>
+                    <option value="search_only">Search only</option>
+                  </select>
+                </div>
               </div>
 
-              <div className="flex items-center bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <input
-                  type="checkbox"
-                  name="featured"
-                  id="featured"
-                  checked={formData.featured}
-                  onChange={handleInputChange}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <label
-                  htmlFor="featured"
-                  className="ml-3 block text-sm font-medium text-gray-900"
-                >
-                  ⭐ Feature this product on the homepage
+              <div className="flex flex-wrap gap-4 items-center bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    name="is_featured"
+                    checked={formData.is_featured}
+                    onChange={handleInputChange}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-900">⭐ Featured</span>
+                </label>
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    name="is_bestseller"
+                    checked={formData.is_bestseller}
+                    onChange={handleInputChange}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-900">🏆 Bestseller</span>
+                </label>
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    name="is_new_arrival"
+                    checked={formData.is_new_arrival}
+                    onChange={handleInputChange}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-900">✨ New arrival</span>
+                </label>
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    name="on_sale"
+                    checked={formData.on_sale}
+                    onChange={handleInputChange}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-900">🏷️ On sale</span>
                 </label>
               </div>
             </div>
@@ -521,9 +597,9 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
               <div className="border-t border-gray-200 pt-6">
                 <h4 className="text-sm font-medium text-gray-900 mb-4">
-                  Inventory Details
+                  Inventory
                 </h4>
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
                   <div>
                     <label
                       htmlFor="sku"
@@ -541,31 +617,12 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                       placeholder="PROD-001"
                     />
                   </div>
-
-                  <div>
-                    <label
-                      htmlFor="barcode"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
-                      Barcode
-                    </label>
-                    <input
-                      type="text"
-                      name="barcode"
-                      id="barcode"
-                      value={formData.barcode}
-                      onChange={handleInputChange}
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2.5 transition-colors"
-                      placeholder="123456789012"
-                    />
-                  </div>
-
                   <div>
                     <label
                       htmlFor="quantity"
                       className="block text-sm font-medium text-gray-700 mb-1"
                     >
-                      Stock Quantity <span className="text-red-500">*</span>
+                      Stock <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="number"
@@ -581,10 +638,107 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                       placeholder="0"
                     />
                     {errors.quantity && (
-                      <p className="mt-1 text-sm text-red-600">
-                        {errors.quantity}
-                      </p>
+                      <p className="mt-1 text-sm text-red-600">{errors.quantity}</p>
                     )}
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="low_stock_threshold"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Low stock alert
+                    </label>
+                    <input
+                      type="number"
+                      name="low_stock_threshold"
+                      id="low_stock_threshold"
+                      min="0"
+                      value={formData.low_stock_threshold}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2.5 transition-colors"
+                      placeholder="5"
+                    />
+                  </div>
+                  <div className="flex flex-col justify-end gap-2">
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        name="track_inventory"
+                        checked={formData.track_inventory}
+                        onChange={handleInputChange}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-gray-900">Track inventory</span>
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        name="allow_backorder"
+                        checked={formData.allow_backorder}
+                        onChange={handleInputChange}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-gray-900">Allow backorder</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-200 pt-6">
+                <h4 className="text-sm font-medium text-gray-900 mb-4">
+                  Shipping
+                </h4>
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                  <div>
+                    <label
+                      htmlFor="weight"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Weight (kg)
+                    </label>
+                    <input
+                      type="number"
+                      name="weight"
+                      id="weight"
+                      step="0.001"
+                      min="0"
+                      value={formData.weight}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2.5 transition-colors"
+                      placeholder="0.5"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="shipping_class"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Shipping class
+                    </label>
+                    <select
+                      name="shipping_class"
+                      id="shipping_class"
+                      value={formData.shipping_class}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2.5 transition-colors"
+                    >
+                      <option value="">Standard</option>
+                      <option value="standard">Standard</option>
+                      <option value="express">Express</option>
+                      <option value="fragile">Fragile</option>
+                    </select>
+                  </div>
+                  <div className="flex items-end">
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        name="requires_shipping"
+                        checked={formData.requires_shipping}
+                        onChange={handleInputChange}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-gray-900">Requires shipping</span>
+                    </label>
                   </div>
                 </div>
               </div>
@@ -595,8 +749,8 @@ export function ProductForm({ product, categories }: ProductFormProps) {
         {/* Images Tab */}
         {activeTab === "images" && (
           <div className="bg-white shadow-lg sm:rounded-lg border border-gray-200">
-            <div className="px-6 py-6 sm:p-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="px-6 py-6 sm:p-8 space-y-6">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <span className="text-xl">🖼️</span>
                 Product Images
               </h3>
@@ -609,16 +763,33 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                 </div>
               ) : (
                 <>
-                  <p className="text-sm text-gray-500 mb-6">
-                    Upload high-quality images of your product. The first image
-                    will be used as the primary image.
+                  <p className="text-sm text-gray-500">
+                    Upload images. The first or selected primary image is used as the main product image.
                   </p>
                   <ImageUpload
                     productId={product!.id}
-                    existingImages={product?.images || []}
+                    featuredImage={product?.featured_image ?? null}
+                    galleryImages={product?.gallery_images ?? []}
                   />
                 </>
               )}
+              <div>
+                <label
+                  htmlFor="video_url"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Video URL
+                </label>
+                <input
+                  type="url"
+                  name="video_url"
+                  id="video_url"
+                  value={formData.video_url}
+                  onChange={handleInputChange}
+                  className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2.5 transition-colors"
+                  placeholder="https://youtube.com/..."
+                />
+              </div>
             </div>
           </div>
         )}
@@ -690,23 +861,20 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
               <div>
                 <label
-                  htmlFor="focus_keyword"
+                  htmlFor="meta_keywords"
                   className="block text-sm font-medium text-gray-700 mb-1"
                 >
-                  Focus Keyword
+                  Meta Keywords
                 </label>
                 <input
                   type="text"
-                  name="focus_keyword"
-                  id="focus_keyword"
-                  value={formData.focus_keyword}
+                  name="meta_keywords"
+                  id="meta_keywords"
+                  value={formData.meta_keywords}
                   onChange={handleInputChange}
                   className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2.5 transition-colors"
-                  placeholder="wireless headphones"
+                  placeholder="samsung, phone, galaxy (comma-separated)"
                 />
-                <p className="mt-2 text-xs text-gray-500">
-                  Primary keyword you want to rank for
-                </p>
               </div>
             </div>
           </div>
@@ -756,34 +924,31 @@ export function ProductForm({ product, categories }: ProductFormProps) {
       <input type="hidden" name="title" value={formData.title} />
       <input type="hidden" name="slug" value={formData.slug} />
       <input type="hidden" name="description" value={formData.description} />
+      <input type="hidden" name="short_description" value={formData.short_description} />
       <input type="hidden" name="category_id" value={formData.category_id} />
       <input type="hidden" name="status" value={formData.status} />
-      <input
-        type="hidden"
-        name="featured"
-        value={formData.featured.toString()}
-      />
+      <input type="hidden" name="visibility" value={formData.visibility} />
+      <input type="hidden" name="is_featured" value={formData.is_featured ? "true" : "false"} />
+      <input type="hidden" name="is_bestseller" value={formData.is_bestseller ? "true" : "false"} />
+      <input type="hidden" name="is_new_arrival" value={formData.is_new_arrival ? "true" : "false"} />
+      <input type="hidden" name="on_sale" value={formData.on_sale ? "true" : "false"} />
       <input type="hidden" name="price" value={formData.price} />
-      <input
-        type="hidden"
-        name="compare_at_price"
-        value={formData.compare_at_price}
-      />
+      <input type="hidden" name="compare_at_price" value={formData.compare_at_price} />
       <input type="hidden" name="cost_price" value={formData.cost_price} />
       <input type="hidden" name="sku" value={formData.sku} />
-      <input type="hidden" name="barcode" value={formData.barcode} />
       <input type="hidden" name="quantity" value={formData.quantity} />
+      <input type="hidden" name="low_stock_threshold" value={formData.low_stock_threshold} />
+      <input type="hidden" name="track_inventory" value={formData.track_inventory ? "true" : "false"} />
+      <input type="hidden" name="allow_backorder" value={formData.allow_backorder ? "true" : "false"} />
+      <input type="hidden" name="weight" value={formData.weight} />
+      <input type="hidden" name="video_url" value={formData.video_url} />
+      <input type="hidden" name="requires_shipping" value={formData.requires_shipping ? "true" : "false"} />
+      <input type="hidden" name="shipping_class" value={formData.shipping_class} />
+      <input type="hidden" name="featured_image" value={product?.featured_image ?? ""} />
+      <input type="hidden" name="gallery_images" value={JSON.stringify(product?.gallery_images ?? [])} />
       <input type="hidden" name="meta_title" value={formData.meta_title} />
-      <input
-        type="hidden"
-        name="meta_description"
-        value={formData.meta_description}
-      />
-      <input
-        type="hidden"
-        name="focus_keyword"
-        value={formData.focus_keyword}
-      />
+      <input type="hidden" name="meta_description" value={formData.meta_description} />
+      <input type="hidden" name="meta_keywords" value={formData.meta_keywords} />
     </form>
   );
 }
