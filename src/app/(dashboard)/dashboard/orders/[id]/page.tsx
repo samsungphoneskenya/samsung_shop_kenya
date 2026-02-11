@@ -33,7 +33,7 @@ export default async function OrderDetailPage({
     .order("created_at", { ascending: true });
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8">
+    <div className="px-4 sm:px-6 lg:px-8 text-black">
       <div className="mb-6">
         <Link
           href="/dashboard/orders"
@@ -48,8 +48,7 @@ export default async function OrderDetailPage({
           Order {order.order_number}
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          {order.created_at &&
-            new Date(order.created_at).toLocaleString()}
+          {order.created_at && new Date(order.created_at).toLocaleString()}
         </p>
       </div>
 
