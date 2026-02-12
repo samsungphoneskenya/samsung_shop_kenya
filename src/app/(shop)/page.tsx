@@ -18,15 +18,17 @@ export async function generateMetadata() {
   const page = await getPageBySlug("home");
   return {
     title: page?.meta_title ?? "Samsung Phones Kenya | Official Store",
-    description: page?.meta_description ?? "Shop the latest Samsung smartphones, tablets, and accessories in Kenya.",
+    description:
+      page?.meta_description ??
+      "Shop the latest Samsung smartphones, tablets, and accessories in Kenya.",
   };
 }
 
 export default async function Home() {
   const [newArrivals, onSale, bestSellers] = await Promise.all([
-    getNewArrivals(8),
-    getOnSaleProducts(8),
-    getBestSellers(8),
+    getNewArrivals(4),
+    getOnSaleProducts(4),
+    getBestSellers(4),
   ]);
 
   const page = await getPageBySlug("home");
