@@ -202,6 +202,14 @@ export function OrderDetailClient({ order, items }: OrderDetailClientProps) {
                   Last sent: {new Date(order.whatsapp_sent_at).toLocaleString()}
                 </p>
               )}
+              <div className="mt-4">
+                <a
+                  href={`/dashboard/orders/${order.id}/invoice`}
+                  className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                >
+                  Download PDF invoice
+                </a>
+              </div>
             </div>
           </div>
         </div>
