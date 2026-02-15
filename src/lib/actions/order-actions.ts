@@ -29,56 +29,47 @@ export async function createOrder(
   const supabase = await createClient();
 
   try {
-    // Validate input
     const validated = createOrderSchema.parse(data);
 
-    // Order number is set by DB trigger if empty
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .insert({
-        order_number: validated.order_number || "",
-        customer_name: validated.customer_name || "Customer",
-        customer_phone: validated.customer_phone,
-        customer_email: (validated.customer_email && validated.customer_email.trim()) || null,
-        delivery_location: validated.delivery_location,
-        delivery_lat: validated.delivery_lat ?? null,
-        delivery_lng: validated.delivery_lng ?? null,
-        delivery_place_id: validated.delivery_place_id || null,
-        delivery_notes: validated.delivery_notes || null,
-        subtotal: validated.subtotal,
-        discount_amount: 0,
-        tax_amount: validated.tax ?? 0,
-        shipping_fee: validated.shipping_fee ?? 0,
-        total: validated.total,
-        payment_method: validated.payment_method,
-        status: "pending",
-        payment_status: "pending",
-      })
-      .select()
-      .single();
+    const orderPayload = {
+      order_number: validated.order_number || "",
+      customer_name: validated.customer_name || "Customer",
+      customer_phone: validated.customer_phone,
+      customer_email: validated.customer_email?.trim() || "",
+      delivery_location: validated.delivery_location,
+      delivery_lat: validated.delivery_lat ?? null,
+      delivery_lng: validated.delivery_lng ?? null,
+      delivery_place_id: validated.delivery_place_id || "",
+      delivery_notes: validated.delivery_notes || "",
+      subtotal: validated.subtotal,
+      tax_amount: validated.tax ?? 0,
+      shipping_fee: validated.shipping_fee ?? 0,
+      total: validated.total,
+      payment_method: validated.payment_method,
+    };
 
-    if (orderError) throw orderError;
-
-    // Create order items
-    const orderItems = validated.items.map((item) => ({
-      order_id: order.id,
+    const itemsPayload = validated.items.map((item) => ({
       product_id: item.product_id,
       product_title: item.product_title,
       product_slug: item.product_slug,
-      product_image: item.product_image || null,
-      product_sku: item.product_sku || null,
+      product_image: item.product_image || "",
+      product_sku: item.product_sku || "",
       unit_price: item.unit_price,
       quantity: item.quantity,
       subtotal: item.subtotal,
     }));
 
-    const { error: itemsError } = await supabase
-      .from("order_items")
-      .insert(orderItems);
+    const { data: result, error } = await supabase.rpc(
+      "create_order_with_items",
+      {
+        p_order: orderPayload,
+        p_items: itemsPayload,
+      }
+    );
 
-    if (itemsError) throw itemsError;
+    if (error) throw error;
 
-    // Update product quantities (skip if RPC fails e.g. no track_inventory)
+    // Decrement inventory (best-effort, non-blocking)
     for (const item of validated.items) {
       try {
         await supabase.rpc("decrement_product_quantity", {
@@ -86,21 +77,24 @@ export async function createOrder(
           quantity_to_remove: item.quantity,
         });
       } catch {
-        // Product may not track inventory; order still valid
+        // best-effort, ignore failures
       }
     }
 
+    const { order_id, order_number } = result as {
+      order_id: string;
+      order_number: string;
+    };
+
     return {
       success: true,
-      orderId: order.id,
-      orderNumber: order.order_number,
+      orderId: order_id,
+      orderNumber: order_number,
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error("Create order error:", error);
-    return {
-      error: error.message || "Failed to create order",
-    };
+    return { error: error.message || "Failed to create order" };
   }
 }
 
@@ -249,10 +243,11 @@ export async function confirmOrderPayment(
 
   const supabase = await createClient();
 
-  const updates: { payment_status: string; payment_reference?: string | null } = {
-    payment_status: "paid",
-    payment_reference: paymentReference ?? null,
-  };
+  const updates: { payment_status: string; payment_reference?: string | null } =
+    {
+      payment_status: "paid",
+      payment_reference: paymentReference ?? null,
+    };
 
   const { error } = await supabase
     .from("orders")
@@ -269,7 +264,9 @@ export async function confirmOrderPayment(
 /**
  * Mark WhatsApp notification as sent (stub: in future call WhatsApp API)
  */
-export async function sendOrderWhatsApp(orderId: string): Promise<ActionResult> {
+export async function sendOrderWhatsApp(
+  orderId: string
+): Promise<ActionResult> {
   const user = await getCurrentUser();
   if (!user) return { error: "Unauthorized" };
 
