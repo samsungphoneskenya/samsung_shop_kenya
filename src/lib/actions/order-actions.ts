@@ -86,6 +86,15 @@ export async function createOrder(
       order_number: string;
     };
 
+    // Link order to logged-in user so it appears in My Orders and can be reviewed
+    const user = await getCurrentUser();
+    if (user) {
+      await supabase
+        .from("orders")
+        .update({ user_id: user.id })
+        .eq("id", order_id);
+    }
+
     return {
       success: true,
       orderId: order_id,
