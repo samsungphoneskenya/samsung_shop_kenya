@@ -39,6 +39,7 @@ type SignupResult = {
 
 /**
  * Login with email and password
+ * Redirects staff to dashboard and customers to their account area.
  */
 export async function login(formData: FormData): Promise<LoginResult> {
   const supabase = await createClient();
@@ -56,7 +57,7 @@ export async function login(formData: FormData): Promise<LoginResult> {
   const { email, password } = result.data;
 
   // Attempt login
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
@@ -65,13 +66,37 @@ export async function login(formData: FormData): Promise<LoginResult> {
     return { error: error.message };
   }
 
+  // Determine role to decide where to redirect the user
+  const user = data.user;
+
+  let redirectPath = "/account";
+
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (
+      profile?.role === "admin" ||
+      profile?.role === "editor" ||
+      profile?.role === "seo_manager"
+    ) {
+      redirectPath = "/dashboard";
+    }
+  }
+
   // Revalidate and redirect
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  redirect(redirectPath);
 }
 
 /**
  * Sign up new user
+ * New users are created as `customer` and redirected to their account/profile
+ * when email confirmation is not required. If confirmation is required, we
+ * fall back to the existing \"check your email\" flow.
  */
 export async function signup(formData: FormData): Promise<SignupResult> {
   const supabase = await createClient();
@@ -90,7 +115,7 @@ export async function signup(formData: FormData): Promise<SignupResult> {
   const { email, password, fullName } = result.data;
 
   // Create user
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -105,7 +130,29 @@ export async function signup(formData: FormData): Promise<SignupResult> {
     return { error: error.message };
   }
 
-  // Check if email confirmation is required
+  const user = data.user;
+
+  // If we already have a session/user (email confirmation disabled),
+  // create the customer profile immediately and send them to their account.
+  if (user) {
+    // Ensure a corresponding profile with the `customer` role exists
+    await supabase
+      .from("profiles")
+      .upsert(
+        {
+          id: user.id,
+          email,
+          full_name: fullName,
+          role: "customer",
+        },
+        { onConflict: "id" }
+      );
+
+    revalidatePath("/", "layout");
+    redirect("/account");
+  }
+
+  // Otherwise, fall back to email confirmation flow
   return {
     success: true,
     message: "Check your email to confirm your account",
@@ -180,7 +227,23 @@ export async function updatePassword(formData: FormData): Promise<LoginResult> {
   }
 
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  const { data: { user } } = await supabase.auth.getUser();
+  let redirectPath = "/account";
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    if (
+      profile?.role === "admin" ||
+      profile?.role === "editor" ||
+      profile?.role === "seo_manager"
+    ) {
+      redirectPath = "/dashboard";
+    }
+  }
+  redirect(redirectPath);
 }
 
 /**
