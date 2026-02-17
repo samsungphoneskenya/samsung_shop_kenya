@@ -10,6 +10,7 @@ import FloatingButtons from "@/components/shop/FloatingButtons";
 import ProductCard from "@/components/shop/ProductCard";
 import { ProductDetailTabs } from "@/components/shop/ProductDetailTabs";
 import { AddToCartButton } from "@/components/shop/AddToCartButton";
+import { FavouriteButton } from "@/components/shop/FavouriteButton";
 import {
   getProductBySlug,
   getRelatedProducts,
@@ -273,7 +274,10 @@ export default async function ProductPage({
 
             {/* Actions */}
             <div className="mb-8 flex flex-col gap-3">
-              <AddToCartButton product={product} />
+              <div className="flex flex-wrap gap-2">
+                <AddToCartButton product={product} />
+                <FavouriteButton productId={product.id} />
+              </div>
 
               <Link
                 href={`https://wa.me/254758313512?text=${encodeURIComponent(
