@@ -97,60 +97,6 @@ export type Database = {
           },
         ]
       }
-      seo_metadata: {
-        Row: {
-          id: string
-          entity_type: string
-          entity_id: string
-          meta_title: string | null
-          meta_description: string | null
-          og_title: string | null
-          og_description: string | null
-          og_image: string | null
-          canonical_url: string | null
-          robots: string | null
-          structured_data: Json | null
-          readability_score: number | null
-          seo_score: number | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          entity_type: string
-          entity_id: string
-          meta_title?: string | null
-          meta_description?: string | null
-          og_title?: string | null
-          og_description?: string | null
-          og_image?: string | null
-          canonical_url?: string | null
-          robots?: string | null
-          structured_data?: Json | null
-          readability_score?: number | null
-          seo_score?: number | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          entity_type?: string
-          entity_id?: string
-          meta_title?: string | null
-          meta_description?: string | null
-          og_title?: string | null
-          og_description?: string | null
-          og_image?: string | null
-          canonical_url?: string | null
-          robots?: string | null
-          structured_data?: Json | null
-          readability_score?: number | null
-          seo_score?: number | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       order_items: {
         Row: {
           created_at: string | null
@@ -1017,6 +963,10 @@ export type Database = {
       }
     }
     Functions: {
+      create_order_with_items: {
+        Args: { p_items: Json; p_order: Json }
+        Returns: Json
+      }
       decrement_product_quantity: {
         Args: { product_id: string; quantity_to_remove: number }
         Returns: undefined

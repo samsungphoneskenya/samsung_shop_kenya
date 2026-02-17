@@ -13,43 +13,46 @@ export default async function SEODashboardPage() {
 
   const supabase = await createClient();
 
-  // Get SEO statistics
-  const [productsResult, pagesResult, seoMetadataResult] = await Promise.all([
+  const [productsResult, pagesResult] = await Promise.all([
     supabase
       .from("products")
-      .select("id, title, slug, status")
+      .select(
+        "id, title, slug, status, meta_title, meta_description, meta_keywords"
+      )
       .eq("status", "published"),
     supabase
       .from("pages")
-      .select("id, title, slug, status")
+      .select("id, title, slug, status, meta_title, meta_description")
       .eq("status", "published"),
-    supabase.from("seo_metadata").select("*"),
   ]);
 
   const products = productsResult.data || [];
   const pages = pagesResult.data || [];
-  const allSeoMetadata = seoMetadataResult.data || [];
+  const allEntities = [
+    ...products.map((p) => ({
+      meta_title: p.meta_title,
+      meta_description: p.meta_description,
+    })),
+    ...pages.map((p) => ({
+      meta_title: p.meta_title,
+      meta_description: p.meta_description,
+    })),
+  ];
 
-  // Calculate statistics
   const stats = {
     totalPages: products.length + pages.length,
-    withSEO: allSeoMetadata.length,
-    missingMetaDescription: allSeoMetadata.filter(
-      (seo) => !seo.meta_description || seo.meta_description.length === 0
+    // Count entities that have at least a meta_title set
+    withSEO: allEntities.filter((e) => e.meta_title && e.meta_title.length > 0)
+      .length,
+    missingMetaDescription: allEntities.filter(
+      (e) => !e.meta_description || e.meta_description.length === 0
     ).length,
-    missingMetaTitle: allSeoMetadata.filter(
-      (seo) => !seo.meta_title || seo.meta_title.length === 0
+    missingMetaTitle: allEntities.filter(
+      (e) => !e.meta_title || e.meta_title.length === 0
     ).length,
-    avgReadabilityScore:
-      allSeoMetadata
-        .filter((seo) => seo.readability_score)
-        .reduce((sum, seo) => sum + (seo.readability_score || 0), 0) /
-        allSeoMetadata.filter((seo) => seo.readability_score).length || 0,
-    avgSeoScore:
-      allSeoMetadata
-        .filter((seo) => seo.seo_score)
-        .reduce((sum, seo) => sum + (seo.seo_score || 0), 0) /
-        allSeoMetadata.filter((seo) => seo.seo_score).length || 0,
+    // No score columns in current schema — default to 0
+    avgReadabilityScore: 0,
+    avgSeoScore: 0,
   };
 
   return (

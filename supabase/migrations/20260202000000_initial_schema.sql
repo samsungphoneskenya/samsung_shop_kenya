@@ -400,7 +400,6 @@ CREATE TABLE IF NOT EXISTS user_sessions (
   
   CONSTRAINT valid_expiry CHECK (expires_at > created_at)
 );
-
 -- =====================================================
 -- INDEXES FOR PERFORMANCE
 -- =====================================================
@@ -654,6 +653,89 @@ BEGIN
   RETURN COALESCE(review_count, 0);
 END;
 $$ LANGUAGE plpgsql;
+
+-- new migration: validate product exists before inserting order item
+CREATE OR REPLACE FUNCTION validate_order_item_product()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.product_id IS NOT NULL THEN
+    IF NOT EXISTS (SELECT 1 FROM products WHERE id = NEW.product_id) THEN
+      RAISE EXCEPTION 'Product % does not exist', NEW.product_id;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER check_order_item_product
+  BEFORE INSERT ON order_items
+  FOR EACH ROW EXECUTE FUNCTION validate_order_item_product();
+
+-- Add this as a new migration
+CREATE OR REPLACE FUNCTION create_order_with_items(
+  p_order JSONB,
+  p_items JSONB
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_order_id UUID;
+  v_order_number TEXT;
+BEGIN
+  -- Insert order
+  INSERT INTO orders (
+    order_number, customer_name, customer_phone, customer_email,
+    delivery_location, delivery_lat, delivery_lng, delivery_place_id,
+    delivery_notes, subtotal, discount_amount, tax_amount,
+    shipping_fee, total, payment_method, status, payment_status
+  )
+  VALUES (
+    COALESCE(NULLIF(p_order->>'order_number', ''), generate_order_number()),
+    p_order->>'customer_name',
+    p_order->>'customer_phone',
+    NULLIF(p_order->>'customer_email', ''),
+    p_order->>'delivery_location',
+    NULLIF(p_order->>'delivery_lat', '')::DECIMAL,
+    NULLIF(p_order->>'delivery_lng', '')::DECIMAL,
+    NULLIF(p_order->>'delivery_place_id', ''),
+    NULLIF(p_order->>'delivery_notes', ''),
+    (p_order->>'subtotal')::DECIMAL,
+    0,
+    COALESCE(NULLIF(p_order->>'tax_amount', '')::DECIMAL, 0),
+    COALESCE(NULLIF(p_order->>'shipping_fee', '')::DECIMAL, 0),
+    (p_order->>'total')::DECIMAL,
+    p_order->>'payment_method',
+    'pending',
+    'pending'
+  )
+  RETURNING id, order_number INTO v_order_id, v_order_number;
+
+  -- Insert items (all in one go, inside same transaction)
+  INSERT INTO order_items (
+    order_id, product_id, product_title, product_slug,
+    product_image, product_sku, unit_price, quantity, subtotal
+  )
+  SELECT
+    v_order_id,
+    (item->>'product_id')::UUID,
+    item->>'product_title',
+    item->>'product_slug',
+    NULLIF(item->>'product_image', ''),
+    NULLIF(item->>'product_sku', ''),
+    (item->>'unit_price')::DECIMAL,
+    (item->>'quantity')::INTEGER,
+    (item->>'subtotal')::DECIMAL
+  FROM jsonb_array_elements(p_items) AS item;
+
+  RETURN jsonb_build_object(
+    'order_id', v_order_id,
+    'order_number', v_order_number
+  );
+END;
+$$;
+
 
 -- =====================================================
 -- TRIGGERS
