@@ -39,12 +39,17 @@ export default function UnauthorizedPage() {
 
         <div className="space-y-3">
           <Link
-            href="/dashboard"
+            href="/account"
             className="inline-block w-full px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+          >
+            Go to My Account
+          </Link>
+          <Link
+            href="/dashboard"
+            className="inline-block w-full px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
           >
             Go to Dashboard
           </Link>
-
           <Link
             href="/"
             className="inline-block w-full px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
