@@ -21,6 +21,80 @@ type ActionResult = {
 };
 
 /**
+ * Create a new order from the admin dashboard.
+ * This is a simplified flow that lets staff quickly create an order
+ * without going through the public checkout/cart.
+ */
+export async function createOrderFromDashboard(
+  payload: {
+    customer_name: string;
+    customer_phone: string;
+    customer_email?: string;
+    delivery_location: string;
+    delivery_notes?: string | null;
+    payment_method: string;
+    subtotal: number;
+    tax_amount?: number;
+    shipping_fee?: number;
+  }
+): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { error: "Unauthorized" };
+  }
+
+  const supabase = await createClient();
+
+  try {
+    const now = new Date();
+    const orderNumber = `ADM-${now.getFullYear()}${(now.getMonth() + 1)
+      .toString()
+      .padStart(2, "0")}-${now.getTime()}`;
+
+    const total =
+      payload.subtotal +
+      (payload.tax_amount ?? 0) +
+      (payload.shipping_fee ?? 0);
+
+    const { data, error } = await supabase
+      .from("orders")
+      .insert({
+        order_number: orderNumber,
+        customer_name: payload.customer_name || "Customer",
+        customer_phone: payload.customer_phone,
+        customer_email: payload.customer_email?.trim() || null,
+        delivery_location: payload.delivery_location,
+        delivery_notes: payload.delivery_notes ?? null,
+        subtotal: payload.subtotal,
+        tax_amount: payload.tax_amount ?? 0,
+        shipping_fee: payload.shipping_fee ?? 0,
+        total,
+        payment_method: payload.payment_method,
+        payment_status: "pending",
+        status: "pending",
+        user_id: null,
+      })
+      .select("id, order_number")
+      .single();
+
+    if (error) throw error;
+
+    revalidatePath("/dashboard/orders");
+
+    return {
+      success: true,
+      orderId: data.id,
+      orderNumber: data.order_number,
+    };
+  } catch (error: any) {
+    console.error("Create dashboard order error:", error);
+    return {
+      error: error.message || "Failed to create dashboard order",
+    };
+  }
+}
+
+/**
  * Create a new order (public - from checkout)
  */
 export async function createOrder(
@@ -86,6 +160,15 @@ export async function createOrder(
       order_number: string;
     };
 
+    // Link order to logged-in user so it appears in My Orders and can be reviewed
+    const user = await getCurrentUser();
+    if (user) {
+      await supabase
+        .from("orders")
+        .update({ user_id: user.id })
+        .eq("id", order_id);
+    }
+
     return {
       success: true,
       orderId: order_id,
@@ -122,15 +205,15 @@ export async function updateOrderStatus(
 
     if (error) throw error;
 
-    // Add status history entry
-    if (validated.notes) {
-      await supabase.from("order_status_history").insert({
-        order_id: orderId,
-        status: validated.status,
-        notes: validated.notes,
-        created_by: user.id,
-      });
-    }
+    // Add status history entry (always log who changed it)
+    await supabase.from("order_status_history").insert({
+      order_id: orderId,
+      status: validated.status,
+      notes:
+        validated.notes ||
+        `Status changed to "${validated.status}" from dashboard`,
+      created_by: user.id,
+    });
 
     revalidatePath("/dashboard/orders");
     revalidatePath(`/dashboard/orders/${orderId}`);
@@ -243,22 +326,47 @@ export async function confirmOrderPayment(
 
   const supabase = await createClient();
 
-  const updates: { payment_status: string; payment_reference?: string | null } =
-    {
+  try {
+    // Fetch existing state for audit logging
+    const { data: existing, error: fetchError } = await supabase
+      .from("orders")
+      .select("status,payment_status,payment_reference")
+      .eq("id", orderId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    const updates: { payment_status: string; payment_reference?: string | null } = {
       payment_status: "paid",
       payment_reference: paymentReference ?? null,
     };
 
-  const { error } = await supabase
-    .from("orders")
-    .update(updates)
-    .eq("id", orderId);
+    const { error: updateError } = await supabase
+      .from("orders")
+      .update(updates)
+      .eq("id", orderId);
 
-  if (error) return { error: error.message };
+    if (updateError) throw updateError;
 
-  revalidatePath("/dashboard/orders");
-  revalidatePath(`/dashboard/orders/${orderId}`);
-  return { success: true };
+    // Log payment change in status history, including who did it
+    await supabase.from("order_status_history").insert({
+      order_id: orderId,
+      status: existing?.status ?? "pending",
+      notes: `Payment status changed from "${
+        existing?.payment_status ?? "unknown"
+      }" to "paid" via dashboard. M-Pesa reference: ${
+        paymentReference || "N/A"
+      }. Previous reference: ${existing?.payment_reference || "none"}.`,
+      created_by: user.id,
+    });
+
+    revalidatePath("/dashboard/orders");
+    revalidatePath(`/dashboard/orders/${orderId}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error("Confirm order payment error:", error);
+    return { error: error.message || "Failed to confirm payment" };
+  }
 }
 
 /**

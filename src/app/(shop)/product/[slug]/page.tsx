@@ -8,9 +8,14 @@ import Header from "@/components/shared/Header";
 import Footer from "@/components/shared/Footer";
 import FloatingButtons from "@/components/shop/FloatingButtons";
 import ProductCard from "@/components/shop/ProductCard";
+import { ProductDetailTabs } from "@/components/shop/ProductDetailTabs";
+import { AddToCartButton } from "@/components/shop/AddToCartButton";
+import { FavouriteButton } from "@/components/shop/FavouriteButton";
 import {
   getProductBySlug,
   getRelatedProducts,
+  getProductSpecifications,
+  getProductReviews,
 } from "@/lib/actions/storefront-actions";
 
 function buildSeoDescription(input: {
@@ -106,6 +111,11 @@ export default async function ProductPage({
   const compare = product.compare_at_price ?? undefined;
 
   const isOnSale = !!compare && compare > price;
+
+  const [specifications, reviews] = await Promise.all([
+    getProductSpecifications(product.id),
+    getProductReviews(product.id, { limit: 20 }),
+  ]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -262,8 +272,13 @@ export default async function ProductPage({
                 )}
             </div>
 
-            {/* Actions – kept simple to avoid client cart dependencies */}
+            {/* Actions */}
             <div className="mb-8 flex flex-col gap-3">
+              <div className="flex flex-wrap gap-2">
+                <AddToCartButton product={product} />
+                <FavouriteButton productId={product.id} />
+              </div>
+
               <Link
                 href={`https://wa.me/254758313512?text=${encodeURIComponent(
                   `Hi, I'm interested in ${product.title} (${
@@ -283,18 +298,6 @@ export default async function ProductPage({
                 our team on WhatsApp and confirm delivery within Nairobi.
               </p>
             </div>
-
-            {/* Description */}
-            {product.description && (
-              <section className="mb-8">
-                <h2 className="text-sm font-semibold text-gray-900 mb-2">
-                  Product overview
-                </h2>
-                <p className="text-sm leading-relaxed text-gray-700 whitespace-pre-line">
-                  {product.description}
-                </p>
-              </section>
-            )}
 
             {/* Assurance badges */}
             <section className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-auto">
@@ -334,6 +337,13 @@ export default async function ProductPage({
             </section>
           </div>
         </section>
+
+        {/* Detailed information tabs */}
+        <ProductDetailTabs
+          product={product}
+          specifications={specifications}
+          reviews={reviews}
+        />
 
         {/* Related products */}
         {related.length > 0 && (

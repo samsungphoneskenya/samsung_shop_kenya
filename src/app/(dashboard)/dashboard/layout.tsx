@@ -2,15 +2,22 @@ import { requireAuth, getCurrentUserProfile } from "@/lib/auth/session";
 import { logout } from "@/lib/auth/actions";
 import Link from "next/link";
 import Image from "next/image";
+import { redirect } from "next/navigation";
+
+const STAFF_ROLES = ["admin", "editor", "seo_manager"];
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Require authentication
   await requireAuth();
   const profile = await getCurrentUserProfile();
+
+  // Customers have no access to the dashboard; redirect to their account
+  if (!profile || !STAFF_ROLES.includes(profile.role ?? "")) {
+    redirect("/account");
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">

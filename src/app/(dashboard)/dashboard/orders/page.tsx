@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/db/client";
 import { requireRole } from "@/lib/auth/session";
 import { OrdersTable } from "@/components/dashboard/orders-table";
+import Link from "next/link";
 
 export const metadata = {
   title: "Orders",
@@ -66,7 +67,13 @@ export default async function OrdersPage({
             Manage all customer orders and track their status.
           </p>
         </div>
-        <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none space-x-2">
+        <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none flex items-center space-x-2">
+          <Link
+            href="/dashboard/orders/new"
+            className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+          >
+            Create order
+          </Link>
           <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
             {pendingCount || 0} Pending
           </span>

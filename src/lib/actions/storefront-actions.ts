@@ -3,7 +3,14 @@
 import { createClient } from "@/lib/db/client";
 import type { Database } from "@/types/database.types";
 
-type ProductsWithDetailsRow = Database["public"]["Views"]["products_with_details"]["Row"];
+type ProductsWithDetailsRow =
+  Database["public"]["Views"]["products_with_details"]["Row"];
+
+export type ProductSpecification =
+  Database["public"]["Tables"]["product_specifications"]["Row"];
+
+export type ProductReview =
+  Database["public"]["Tables"]["product_reviews"]["Row"];
 
 /**
  * Storefront-facing product shape.
@@ -38,6 +45,20 @@ export type StorefrontProduct = {
   review_count: number | null;
   discount_percentage: number | null;
   stock_status: string | null;
+  // Additional product metadata useful for details/specs views
+  sku: string | null;
+  weight: number | null;
+  dimensions: ProductsWithDetailsRow["dimensions"];
+  requires_shipping: boolean | null;
+  shipping_class: string | null;
+  allow_backorder: boolean | null;
+  track_inventory: boolean | null;
+  quantity: number | null;
+  low_stock_threshold: number | null;
+  visibility: string | null;
+  published_at: string | null;
+  updated_at: string | null;
+  video_url: string | null;
 };
 
 function toStorefrontProducts(
@@ -246,6 +267,53 @@ export async function getProductBySlug(slug: string) {
 }
 
 /**
+ * Get structured specifications for a product.
+ */
+export async function getProductSpecifications(productId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("product_specifications")
+    .select("*")
+    .eq("product_id", productId)
+    .order("group_order", { ascending: true })
+    .order("spec_order", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching product specifications:", error);
+    return [] as ProductSpecification[];
+  }
+
+  return (data ?? []) as ProductSpecification[];
+}
+
+/**
+ * Get approved reviews for a product.
+ */
+export async function getProductReviews(
+  productId: string,
+  options?: { limit?: number }
+) {
+  const supabase = await createClient();
+  const limit = options?.limit ?? 20;
+
+  const { data, error } = await supabase
+    .from("product_reviews")
+    .select("*")
+    .eq("product_id", productId)
+    .eq("status", "approved")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("Error fetching product reviews:", error);
+    return [] as ProductReview[];
+  }
+
+  return (data ?? []) as ProductReview[];
+}
+
+/**
  * Get related products (same category)
  */
 export async function getRelatedProducts(
@@ -269,5 +337,24 @@ export async function getRelatedProducts(
     return [];
   }
 
+  return toStorefrontProducts(data);
+}
+
+/**
+ * Get products by IDs (e.g. for favourites list). Returns only published products.
+ */
+export async function getProductsByIds(ids: string[]) {
+  if (!ids.length) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("products_with_details")
+    .select("*")
+    .eq("status", "published")
+    .in("id", ids);
+
+  if (error) {
+    console.error("Error fetching products by ids:", error);
+    return [];
+  }
   return toStorefrontProducts(data);
 }

@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth/session";
+import { getCurrentUserProfile } from "@/lib/auth/session";
 import { SignupForm } from "@/components/auth/signup-form";
 
 export const metadata: Metadata = {
@@ -9,11 +9,12 @@ export const metadata: Metadata = {
   description: "Create a new account",
 };
 
+const STAFF_ROLES = ["admin", "editor", "seo_manager"];
+
 export default async function SignupPage() {
-  // Redirect if already logged in
-  const user = await getCurrentUser();
-  if (user) {
-    redirect("/dashboard");
+  const profile = await getCurrentUserProfile();
+  if (profile) {
+    redirect(STAFF_ROLES.includes(profile.role ?? "") ? "/dashboard" : "/account");
   }
 
   return (
