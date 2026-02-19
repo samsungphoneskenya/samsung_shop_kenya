@@ -30,6 +30,12 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  html:focus-within {
+    scroll-behavior: smooth;
+  }
+}
+
 @keyframes slide-in {
   from {
     transform: translateX(100%);
