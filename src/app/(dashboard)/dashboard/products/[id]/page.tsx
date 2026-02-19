@@ -27,6 +27,14 @@ export default async function EditProductPage({
     .select("id, name")
     .order("name");
 
+  const { data: specifications } = await supabase
+    .from("product_specifications")
+    .select("*")
+    .eq("product_id", id)
+    .order("group_order", { ascending: true })
+    .order("spec_order", { ascending: true })
+    .order("created_at", { ascending: true });
+
   return (
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="mb-8">
@@ -36,7 +44,11 @@ export default async function EditProductPage({
         </p>
       </div>
 
-      <ProductForm product={product} categories={categories || []} />
+      <ProductForm
+        product={product}
+        categories={categories || []}
+        specifications={specifications || []}
+      />
     </div>
   );
 }
