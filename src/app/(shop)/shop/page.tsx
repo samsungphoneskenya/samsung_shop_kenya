@@ -84,132 +84,6 @@ export default async function ShopPage({
     <div className="min-h-screen bg-slate-50">
       <Header />
 
-      {/* Hero + category rail inspired by Samsung offer page */}
-      <section className="bg-linear-to-b from-[#050A1C] via-[#050A1C] to-[#020617] text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 flex flex-col lg:flex-row items-center gap-8">
-          <div className="flex-1">
-            <p className="uppercase tracking-[0.25em] text-[0.65rem] sm:text-xs text-sky-300 mb-3">
-              Samsung Shop Kenya
-            </p>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-4">
-              Essentials for the way you live
-            </h1>
-            <p className="text-sm sm:text-base text-sky-100/80 max-w-xl">
-              Discover Galaxy smartphones, tablets, wearables and more with
-              official warranty and fast delivery across Kenya.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link
-                href="/shop"
-                className="inline-flex items-center justify-center rounded-full bg-white text-slate-900 px-5 py-2.5 text-sm font-semibold shadow-sm hover:bg-slate-100 transition-colors"
-              >
-                Shop all products
-              </Link>
-              <Link
-                href={`/shop${buildShopQuery(params, { sort: "newest" })}`}
-                className="inline-flex items-center justify-center rounded-full border border-white/40 px-5 py-2.5 text-sm font-semibold text-white hover:border-white hover:bg-white/5 transition-colors"
-              >
-                View latest arrivals
-              </Link>
-            </div>
-            <div className="mt-6 flex flex-wrap gap-2 text-[0.7rem] sm:text-xs text-sky-100/80">
-              <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1">
-                Official Samsung devices
-              </span>
-              <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1">
-                Kenya-wide delivery
-              </span>
-              <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1">
-                Manufacturer warranty
-              </span>
-            </div>
-          </div>
-
-          <div className="flex-1 min-w-0 w-full">
-            <div className="relative rounded-3xl border border-white/10 bg-linear-to-br from-sky-500/20 via-sky-400/10 to-transparent p-6 sm:p-8 shadow-[0_18px_45px_rgba(15,23,42,0.7)]">
-              <p className="text-xs uppercase tracking-[0.25em] text-sky-200 mb-4">
-                Highlights
-              </p>
-              <div className="grid grid-cols-2 gap-4 text-xs sm:text-sm">
-                <div className="space-y-1.5">
-                  <p className="font-semibold text-white">Galaxy S &amp; A</p>
-                  <p className="text-sky-100/80">
-                    Flagship power and everyday value with official Kenyan
-                    warranty.
-                  </p>
-                </div>
-                <div className="space-y-1.5">
-                  <p className="font-semibold text-white">Foldables</p>
-                  <p className="text-sky-100/80">
-                    Experience the future of mobile with Galaxy Z Fold &amp;
-                    Flip.
-                  </p>
-                </div>
-                <div className="space-y-1.5">
-                  <p className="font-semibold text-white">Tablets &amp; Tabs</p>
-                  <p className="text-sky-100/80">
-                    Do more with Galaxy Tab S and Tab A series.
-                  </p>
-                </div>
-                <div className="space-y-1.5">
-                  <p className="font-semibold text-white">
-                    Wearables &amp; Audio
-                  </p>
-                  <p className="text-sky-100/80">
-                    Stay connected with Galaxy Watch, Buds and accessories.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-6 flex items-center justify-between gap-4">
-                <p className="text-[0.7rem] sm:text-xs text-sky-100/80">
-                  Curated by Samsung Shop Kenya – inspired by official Samsung
-                  offers.
-                </p>
-                <span className="hidden sm:inline-flex items-center rounded-full bg-white px-3 py-1 text-[0.7rem] font-semibold text-slate-900">
-                  Limited-time deals
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Category pill rail */}
-        <div className="border-t border-white/10">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap gap-2 sm:gap-3 text-[0.7rem] sm:text-xs">
-            <Link
-              href="/shop"
-              className={`inline-flex items-center rounded-full px-3 sm:px-4 py-1.5 font-semibold transition-colors ${
-                !category
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "border border-white/25 text-sky-100/90 hover:border-white/70 hover:text-white"
-              }`}
-            >
-              All
-            </Link>
-            {[
-              { label: "Galaxy S", slug: "galaxy-s-series" },
-              { label: "Galaxy A", slug: "galaxy-a-series" },
-              { label: "Foldables", slug: "foldable-phones" },
-              { label: "Tablets", slug: "galaxy-tab-s" },
-              { label: "Wearables", slug: "wearables" },
-              { label: "Accessories", slug: "accessories" },
-            ].map((item) => (
-              <Link
-                key={item.slug}
-                href={`/shop${buildShopQuery(params, { category: item.slug })}`}
-                className={`inline-flex items-center rounded-full px-3 sm:px-4 py-1.5 font-semibold transition-colors ${
-                  category === item.slug
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "border border-white/25 text-sky-100/90 hover:border-white/70 hover:text-white"
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <p className="text-xs font-semibold tracking-[0.25em] text-slate-500 uppercase mb-2">
@@ -241,9 +115,9 @@ export default async function ShopPage({
           </p>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-8">
+        <div className="flex flex-col-reverse lg:flex-row gap-8">
           {/* Sidebar – filters as URL params */}
-          <aside className="lg:w-64 shrink-0">
+          <aside className="w-full lg:w-64 shrink-0">
             <div className="bg-white rounded-2xl shadow-md p-6 sticky top-24">
               <div className="flex items-center gap-2 mb-6">
                 <SlidersHorizontal className="h-5 w-5 text-gray-500" />
@@ -395,7 +269,7 @@ export default async function ShopPage({
 
             {/* Product grid */}
             {products.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
                 {products.map((product) => (
                   <ProductCard
                     key={product.id}
@@ -426,7 +300,95 @@ export default async function ShopPage({
           </div>
         </div>
       </div>
+      {/* Hero + category rail inspired by Samsung offer page */}
+      <section className="bg-linear-to-b from-[#050A1C] via-[#050A1C] to-[#020617] text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 flex flex-col lg:flex-row items-center gap-8">
+          <div className="flex-1">
+            <p className="uppercase tracking-[0.25em] text-[0.65rem] sm:text-xs text-sky-300 mb-3">
+              Samsung Shop Kenya
+            </p>
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-4">
+              Essentials for the way you live
+            </h1>
+            <p className="text-sm sm:text-base text-sky-100/80 max-w-xl">
+              Discover Galaxy smartphones, tablets, wearables and more with
+              official warranty and fast delivery across Kenya.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link
+                href="/shop"
+                className="inline-flex items-center justify-center rounded-full bg-white text-slate-900 px-5 py-2.5 text-sm font-semibold shadow-sm hover:bg-slate-100 transition-colors"
+              >
+                Shop all products
+              </Link>
+              <Link
+                href={`/shop${buildShopQuery(params, { sort: "newest" })}`}
+                className="inline-flex items-center justify-center rounded-full border border-white/40 px-5 py-2.5 text-sm font-semibold text-white hover:border-white hover:bg-white/5 transition-colors"
+              >
+                View latest arrivals
+              </Link>
+            </div>
+            <div className="mt-6 flex flex-wrap gap-2 text-[0.7rem] sm:text-xs text-sky-100/80">
+              <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1">
+                Official Samsung devices
+              </span>
+              <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1">
+                Kenya-wide delivery
+              </span>
+              <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1">
+                Manufacturer warranty
+              </span>
+            </div>
+          </div>
 
+          <div className="flex-1 min-w-0 w-full">
+            <div className="relative rounded-3xl border border-white/10 bg-linear-to-br from-sky-500/20 via-sky-400/10 to-transparent p-6 sm:p-8 shadow-[0_18px_45px_rgba(15,23,42,0.7)]">
+              <p className="text-xs uppercase tracking-[0.25em] text-sky-200 mb-4">
+                Highlights
+              </p>
+              <div className="grid grid-cols-2 gap-4 text-xs sm:text-sm">
+                <div className="space-y-1.5">
+                  <p className="font-semibold text-white">Galaxy S &amp; A</p>
+                  <p className="text-sky-100/80">
+                    Flagship power and everyday value with official Kenyan
+                    warranty.
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <p className="font-semibold text-white">Foldables</p>
+                  <p className="text-sky-100/80">
+                    Experience the future of mobile with Galaxy Z Fold &amp;
+                    Flip.
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <p className="font-semibold text-white">Tablets &amp; Tabs</p>
+                  <p className="text-sky-100/80">
+                    Do more with Galaxy Tab S and Tab A series.
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <p className="font-semibold text-white">
+                    Wearables &amp; Audio
+                  </p>
+                  <p className="text-sky-100/80">
+                    Stay connected with Galaxy Watch, Buds and accessories.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 flex items-center justify-between gap-4">
+                <p className="text-[0.7rem] sm:text-xs text-sky-100/80">
+                  Curated by Samsung Shop Kenya – inspired by official Samsung
+                  offers.
+                </p>
+                <span className="hidden sm:inline-flex items-center rounded-full bg-white px-3 py-1 text-[0.7rem] font-semibold text-slate-900">
+                  Limited-time deals
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
       <Footer />
       <FloatingButtons />
     </div>
