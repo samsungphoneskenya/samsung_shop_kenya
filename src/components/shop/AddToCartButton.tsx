@@ -51,4 +51,3 @@ export function AddToCartButton({ product }: Props) {
     </button>
   );
 }
-

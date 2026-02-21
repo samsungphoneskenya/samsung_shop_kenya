@@ -1,16 +1,19 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
-import { useActionState, useState, useCallback } from "react";
+import { useActionState, useState, useCallback, useEffect } from "react";
 import { updatePage } from "@/lib/actions/page-actions";
 import { Database } from "@/types/database.types";
 import Link from "next/link";
+import { useToast } from "@/components/ui/use-toast";
+import { useRouter } from "next/navigation";
 import type {
   HomeSections,
   AboutSections,
   ContactSections,
   PageSections,
 } from "@/lib/types/page-sections";
+import { RichTextEditor } from "@/components/shared/RichTextEditor";
 
 type PageRow = Database["public"]["Tables"]["pages"]["Row"];
 
@@ -32,6 +35,8 @@ type PageFormProps = {
 };
 
 export function PageForm({ page }: PageFormProps) {
+  const router = useRouter();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("sections");
   const [formData, setFormData] = useState({
     title: page.title ?? "",
@@ -44,16 +49,41 @@ export function PageForm({ page }: PageFormProps) {
   const action = updatePage.bind(null, page.id);
   const [state, formAction] = useActionState(action, undefined);
 
+  useEffect(() => {
+    if (!state) return;
+    if (state.error) {
+      toast({
+        variant: "destructive",
+        title: "Unable to save page",
+        description: state.error,
+      });
+    }
+    if (state.success) {
+      toast({
+        variant: "success",
+        title: "Page updated",
+        description: "Your changes have been saved.",
+      });
+      router.refresh();
+    }
+  }, [state, toast, router]);
+
   const updateSections = useCallback((path: string, value: unknown) => {
     setFormData((prev) => {
       const next = { ...prev, sections: { ...prev.sections } };
       const keys = path.split(".");
-      let target: Record<string, unknown> = next.sections as Record<string, unknown>;
+      let target: Record<string, unknown> = next.sections as Record<
+        string,
+        unknown
+      >;
       for (let i = 0; i < keys.length - 1; i++) {
         const k = keys[i];
-        const existing = (target[k] && typeof target[k] === "object" && !Array.isArray(target[k]))
-          ? (target[k] as Record<string, unknown>)
-          : {};
+        const existing =
+          target[k] &&
+          typeof target[k] === "object" &&
+          !Array.isArray(target[k])
+            ? (target[k] as Record<string, unknown>)
+            : {};
         const t = { ...existing };
         target[k] = t;
         target = t;
@@ -73,23 +103,6 @@ export function PageForm({ page }: PageFormProps) {
 
   return (
     <form action={formAction} className="max-w-7xl mx-auto text-black">
-      {state?.error && (
-        <div className="mb-6 rounded-lg bg-red-50 border border-red-200 p-4">
-          <div className="flex items-center">
-            <span className="text-red-400 text-xl mr-3">⚠️</span>
-            <div className="text-sm text-red-800">{state.error}</div>
-          </div>
-        </div>
-      )}
-      {state?.success && (
-        <div className="mb-6 rounded-lg bg-green-50 border border-green-200 p-4">
-          <div className="flex items-center">
-            <span className="text-green-400 text-xl mr-3">✓</span>
-            <div className="text-sm text-green-800">Page saved successfully!</div>
-          </div>
-        </div>
-      )}
-
       <div className="mb-8">
         <nav className="-mb-px flex border-b border-gray-200">
           {tabConfig.map((tab) => (
@@ -291,6 +304,35 @@ function Field({
   );
 }
 
+function RichTextSectionField({
+  label,
+  value,
+  path,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (path: string, value: unknown) => void;
+  path: string;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
+      </label>
+      <RichTextEditor
+        name={path}
+        value={value ?? ""}
+        onChange={(html) => onChange(path, html)}
+        placeholder={placeholder}
+        minHeight={180}
+      />
+    </div>
+  );
+}
+
 function HomeSectionEditor({
   sections,
   onChange,
@@ -321,12 +363,12 @@ function HomeSectionEditor({
         path="hero.heading_highlight"
         placeholder="Samsung"
       />
-      <Field
+      <RichTextSectionField
         label="Subtext"
         value={hero.subtext ?? ""}
         onChange={onChange}
         path="hero.subtext"
-        multiline
+        placeholder="Experience the power of innovation..."
       />
       <Field
         label="Primary button text"
@@ -434,8 +476,19 @@ function AboutSectionEditor({
   return (
     <div className="space-y-8 border-t border-gray-200 pt-6">
       <h3 className="text-lg font-semibold text-gray-900">Hero</h3>
-      <Field label="Title" value={hero.title ?? ""} onChange={onChange} path="hero.title" />
-      <Field label="Subtitle" value={hero.subtitle ?? ""} onChange={onChange} path="hero.subtitle" multiline />
+      <Field
+        label="Title"
+        value={hero.title ?? ""}
+        onChange={onChange}
+        path="hero.title"
+      />
+      <RichTextSectionField
+        label="Subtitle"
+        value={hero.subtitle ?? ""}
+        onChange={onChange}
+        path="hero.subtitle"
+        placeholder="Your trusted destination for authentic Samsung products."
+      />
 
       <h3 className="text-lg font-semibold text-gray-900">Stats</h3>
       {[0, 1, 2, 3].map((i) => (
@@ -456,7 +509,10 @@ function AboutSectionEditor({
             value={stats[i]?.label ?? ""}
             onChange={(e) => {
               const next = [...stats];
-              next[i] = { number: next[i]?.number ?? "", label: e.target.value };
+              next[i] = {
+                number: next[i]?.number ?? "",
+                label: e.target.value,
+              };
               onChange("stats", next);
             }}
             className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
@@ -466,9 +522,14 @@ function AboutSectionEditor({
       ))}
 
       <h3 className="text-lg font-semibold text-gray-900">Our Story</h3>
-      <Field label="Section title" value={story.title ?? ""} onChange={onChange} path="story.title" />
+      <Field
+        label="Section title"
+        value={story.title ?? ""}
+        onChange={onChange}
+        path="story.title"
+      />
       {paragraphs.map((p, i) => (
-        <Field
+        <RichTextSectionField
           key={i}
           label={`Paragraph ${i + 1}`}
           value={p}
@@ -478,20 +539,56 @@ function AboutSectionEditor({
             onChange("story.paragraphs", next);
           }}
           path={`story.paragraphs.${i}`}
-          multiline
+          placeholder="Add a rich paragraph about your brand story..."
         />
       ))}
-      <Field label="Story image URL" value={story.image_url ?? ""} onChange={onChange} path="story.image_url" />
-      <Field label="Image alt" value={story.image_alt ?? ""} onChange={onChange} path="story.image_alt" />
-      <Field label="Caption title" value={story.caption_title ?? ""} onChange={onChange} path="story.caption_title" />
-      <Field label="Caption subtitle" value={story.caption_subtitle ?? ""} onChange={onChange} path="story.caption_subtitle" />
+      <Field
+        label="Story image URL"
+        value={story.image_url ?? ""}
+        onChange={onChange}
+        path="story.image_url"
+      />
+      <Field
+        label="Image alt"
+        value={story.image_alt ?? ""}
+        onChange={onChange}
+        path="story.image_alt"
+      />
+      <Field
+        label="Caption title"
+        value={story.caption_title ?? ""}
+        onChange={onChange}
+        path="story.caption_title"
+      />
+      <Field
+        label="Caption subtitle"
+        value={story.caption_subtitle ?? ""}
+        onChange={onChange}
+        path="story.caption_subtitle"
+      />
 
       <h3 className="text-lg font-semibold text-gray-900">Why Choose Us</h3>
-      <Field label="Section title" value={values.section_title ?? ""} onChange={onChange} path="values.section_title" />
-      <Field label="Section subtitle" value={values.section_subtitle ?? ""} onChange={onChange} path="values.section_subtitle" multiline />
+      <Field
+        label="Section title"
+        value={values.section_title ?? ""}
+        onChange={onChange}
+        path="values.section_title"
+      />
+      <Field
+        label="Section subtitle"
+        value={values.section_subtitle ?? ""}
+        onChange={onChange}
+        path="values.section_subtitle"
+        multiline
+      />
       {items.slice(0, 6).map((item, i) => (
-        <div key={i} className="rounded-lg border border-gray-200 p-4 space-y-2">
-          <span className="text-sm font-medium text-gray-500">Value {i + 1}</span>
+        <div
+          key={i}
+          className="rounded-lg border border-gray-200 p-4 space-y-2"
+        >
+          <span className="text-sm font-medium text-gray-500">
+            Value {i + 1}
+          </span>
           <Field
             label="Title"
             value={item.title}
@@ -527,17 +624,76 @@ function AboutSectionEditor({
       ))}
 
       <h3 className="text-lg font-semibold text-gray-900">Visit Us</h3>
-      <Field label="Title" value={visit.title ?? ""} onChange={onChange} path="visit_us.title" />
-      <Field label="Address label" value={visit.address_label ?? ""} onChange={onChange} path="visit_us.address_label" />
-      <Field label="Address (multiline)" value={visit.address_lines ?? ""} onChange={onChange} path="visit_us.address_lines" multiline />
-      <Field label="Hours label" value={visit.hours_label ?? ""} onChange={onChange} path="visit_us.hours_label" />
-      <Field label="Hours" value={visit.hours_lines ?? ""} onChange={onChange} path="visit_us.hours_lines" multiline />
-      <Field label="Contact label" value={visit.contact_label ?? ""} onChange={onChange} path="visit_us.contact_label" />
-      <Field label="Contact" value={visit.contact_lines ?? ""} onChange={onChange} path="visit_us.contact_lines" multiline />
-      <Field label="Directions title" value={visit.directions_title ?? ""} onChange={onChange} path="visit_us.directions_title" />
-      <Field label="Directions text" value={visit.directions_text ?? ""} onChange={onChange} path="visit_us.directions_text" multiline />
-      <Field label="Directions button" value={visit.directions_btn ?? ""} onChange={onChange} path="visit_us.directions_btn" />
-      <Field label="Map link" value={visit.map_link ?? ""} onChange={onChange} path="visit_us.map_link" />
+      <Field
+        label="Title"
+        value={visit.title ?? ""}
+        onChange={onChange}
+        path="visit_us.title"
+      />
+      <Field
+        label="Address label"
+        value={visit.address_label ?? ""}
+        onChange={onChange}
+        path="visit_us.address_label"
+      />
+      <Field
+        label="Address (multiline)"
+        value={visit.address_lines ?? ""}
+        onChange={onChange}
+        path="visit_us.address_lines"
+        multiline
+      />
+      <Field
+        label="Hours label"
+        value={visit.hours_label ?? ""}
+        onChange={onChange}
+        path="visit_us.hours_label"
+      />
+      <Field
+        label="Hours"
+        value={visit.hours_lines ?? ""}
+        onChange={onChange}
+        path="visit_us.hours_lines"
+        multiline
+      />
+      <Field
+        label="Contact label"
+        value={visit.contact_label ?? ""}
+        onChange={onChange}
+        path="visit_us.contact_label"
+      />
+      <Field
+        label="Contact"
+        value={visit.contact_lines ?? ""}
+        onChange={onChange}
+        path="visit_us.contact_lines"
+        multiline
+      />
+      <Field
+        label="Directions title"
+        value={visit.directions_title ?? ""}
+        onChange={onChange}
+        path="visit_us.directions_title"
+      />
+      <Field
+        label="Directions text"
+        value={visit.directions_text ?? ""}
+        onChange={onChange}
+        path="visit_us.directions_text"
+        multiline
+      />
+      <Field
+        label="Directions button"
+        value={visit.directions_btn ?? ""}
+        onChange={onChange}
+        path="visit_us.directions_btn"
+      />
+      <Field
+        label="Map link"
+        value={visit.map_link ?? ""}
+        onChange={onChange}
+        path="visit_us.map_link"
+      />
     </div>
   );
 }
@@ -561,10 +717,23 @@ function ContactSectionEditor({
   return (
     <div className="space-y-8 border-t border-gray-200 pt-6">
       <h3 className="text-lg font-semibold text-gray-900">Hero</h3>
-      <Field label="Title" value={hero.title ?? ""} onChange={onChange} path="hero.title" />
-      <Field label="Subtitle" value={hero.subtitle ?? ""} onChange={onChange} path="hero.subtitle" multiline />
+      <Field
+        label="Title"
+        value={hero.title ?? ""}
+        onChange={onChange}
+        path="hero.title"
+      />
+      <Field
+        label="Subtitle"
+        value={hero.subtitle ?? ""}
+        onChange={onChange}
+        path="hero.subtitle"
+        multiline
+      />
 
-      <h3 className="text-lg font-semibold text-gray-900">Contact methods (4)</h3>
+      <h3 className="text-lg font-semibold text-gray-900">
+        Contact methods (4)
+      </h3>
       {[0, 1, 2, 3].map((i) => {
         const m = methods[i] ?? {
           title: "",
@@ -574,7 +743,10 @@ function ContactSectionEditor({
           color: "from-gray-700 to-gray-900",
         };
         return (
-          <div key={i} className="rounded-lg border border-gray-200 p-4 space-y-2">
+          <div
+            key={i}
+            className="rounded-lg border border-gray-200 p-4 space-y-2"
+          >
             <Field
               label={`Method ${i + 1} title`}
               value={m.title}
@@ -620,11 +792,27 @@ function ContactSectionEditor({
       })}
 
       <h3 className="text-lg font-semibold text-gray-900">Form intro</h3>
-      <Field label="Title" value={formIntro.title ?? ""} onChange={onChange} path="form_intro.title" />
-      <Field label="Subtitle" value={formIntro.subtitle ?? ""} onChange={onChange} path="form_intro.subtitle" multiline />
+      <Field
+        label="Title"
+        value={formIntro.title ?? ""}
+        onChange={onChange}
+        path="form_intro.title"
+      />
+      <Field
+        label="Subtitle"
+        value={formIntro.subtitle ?? ""}
+        onChange={onChange}
+        path="form_intro.subtitle"
+        multiline
+      />
 
       <h3 className="text-lg font-semibold text-gray-900">Store hours</h3>
-      <Field label="Title" value={storeHours.title ?? ""} onChange={onChange} path="store_hours.title" />
+      <Field
+        label="Title"
+        value={storeHours.title ?? ""}
+        onChange={onChange}
+        path="store_hours.title"
+      />
       {(storeHours.rows ?? []).map((row, i) => (
         <div key={i} className="flex gap-2">
           <input
@@ -653,17 +841,56 @@ function ContactSectionEditor({
       ))}
 
       <h3 className="text-lg font-semibold text-gray-900">Location</h3>
-      <Field label="Title" value={location.title ?? ""} onChange={onChange} path="location.title" />
-      <Field label="Name" value={location.name ?? ""} onChange={onChange} path="location.name" />
-      <Field label="Address" value={location.address_lines ?? ""} onChange={onChange} path="location.address_lines" multiline />
-      <Field label="Map button text" value={location.map_link_text ?? ""} onChange={onChange} path="location.map_link_text" />
-      <Field label="Map link" value={location.map_link ?? ""} onChange={onChange} path="location.map_link" />
+      <Field
+        label="Title"
+        value={location.title ?? ""}
+        onChange={onChange}
+        path="location.title"
+      />
+      <Field
+        label="Name"
+        value={location.name ?? ""}
+        onChange={onChange}
+        path="location.name"
+      />
+      <Field
+        label="Address"
+        value={location.address_lines ?? ""}
+        onChange={onChange}
+        path="location.address_lines"
+        multiline
+      />
+      <Field
+        label="Map button text"
+        value={location.map_link_text ?? ""}
+        onChange={onChange}
+        path="location.map_link_text"
+      />
+      <Field
+        label="Map link"
+        value={location.map_link ?? ""}
+        onChange={onChange}
+        path="location.map_link"
+      />
 
       <h3 className="text-lg font-semibold text-gray-900">FAQs</h3>
-      <Field label="Section title" value={faqs.section_title ?? ""} onChange={onChange} path="faqs.section_title" />
-      <Field label="Section subtitle" value={faqs.section_subtitle ?? ""} onChange={onChange} path="faqs.section_subtitle" />
+      <Field
+        label="Section title"
+        value={faqs.section_title ?? ""}
+        onChange={onChange}
+        path="faqs.section_title"
+      />
+      <Field
+        label="Section subtitle"
+        value={faqs.section_subtitle ?? ""}
+        onChange={onChange}
+        path="faqs.section_subtitle"
+      />
       {faqItems.slice(0, 6).map((item, i) => (
-        <div key={i} className="rounded-lg border border-gray-200 p-4 space-y-2">
+        <div
+          key={i}
+          className="rounded-lg border border-gray-200 p-4 space-y-2"
+        >
           <Field
             label={`Q ${i + 1}`}
             value={item.question}
@@ -687,14 +914,44 @@ function ContactSectionEditor({
           />
         </div>
       ))}
-      <Field label="CTA text" value={faqs.cta_text ?? ""} onChange={onChange} path="faqs.cta_text" />
-      <Field label="CTA button" value={faqs.cta_btn ?? ""} onChange={onChange} path="faqs.cta_btn" />
+      <Field
+        label="CTA text"
+        value={faqs.cta_text ?? ""}
+        onChange={onChange}
+        path="faqs.cta_text"
+      />
+      <Field
+        label="CTA button"
+        value={faqs.cta_btn ?? ""}
+        onChange={onChange}
+        path="faqs.cta_btn"
+      />
 
       <h3 className="text-lg font-semibold text-gray-900">WhatsApp block</h3>
-      <Field label="Title" value={whatsapp.title ?? ""} onChange={onChange} path="whatsapp_block.title" />
-      <Field label="Subtitle" value={whatsapp.subtitle ?? ""} onChange={onChange} path="whatsapp_block.subtitle" />
-      <Field label="Button text" value={whatsapp.btn_text ?? ""} onChange={onChange} path="whatsapp_block.btn_text" />
-      <Field label="Link" value={whatsapp.link ?? ""} onChange={onChange} path="whatsapp_block.link" />
+      <Field
+        label="Title"
+        value={whatsapp.title ?? ""}
+        onChange={onChange}
+        path="whatsapp_block.title"
+      />
+      <Field
+        label="Subtitle"
+        value={whatsapp.subtitle ?? ""}
+        onChange={onChange}
+        path="whatsapp_block.subtitle"
+      />
+      <Field
+        label="Button text"
+        value={whatsapp.btn_text ?? ""}
+        onChange={onChange}
+        path="whatsapp_block.btn_text"
+      />
+      <Field
+        label="Link"
+        value={whatsapp.link ?? ""}
+        onChange={onChange}
+        path="whatsapp_block.link"
+      />
     </div>
   );
 }

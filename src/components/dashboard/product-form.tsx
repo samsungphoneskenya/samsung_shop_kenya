@@ -1,7 +1,8 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   createProduct,
   updateProduct,
@@ -10,6 +11,9 @@ import {
 import { ImageUpload } from "@/app/(dashboard)/dashboard/image-upload";
 import { Database } from "@/types/database.types";
 import Link from "next/link";
+import { useToast } from "@/components/ui/use-toast";
+import { ProductSpecificationsEditor } from "@/components/dashboard/product-specifications-editor";
+import { RichTextEditor } from "@/components/shared/RichTextEditor";
 
 type Category = Database["public"]["Tables"]["categories"]["Row"];
 type ProductRow = Database["public"]["Tables"]["products"]["Row"];
@@ -31,6 +35,7 @@ function SubmitButton({ isNew }: { isNew: boolean }) {
 type ProductFormProps = {
   product?: ProductRow;
   categories: Pick<Category, "id" | "name">[];
+  specifications?: Database["public"]["Tables"]["product_specifications"]["Row"][];
 };
 
 type FormData = {
@@ -62,9 +67,15 @@ type FormData = {
   meta_keywords: string;
 };
 
-export function ProductForm({ product, categories }: ProductFormProps) {
+export function ProductForm({
+  product,
+  categories,
+  specifications = [],
+}: ProductFormProps) {
+  const router = useRouter();
   const isNew = !product;
   const [activeTab, setActiveTab] = useState("basic");
+  const { toast } = useToast();
 
   const action = isNew ? createProduct : updateProduct.bind(null, product!.id);
   const [state, formAction] = useActionState(action, undefined);
@@ -104,6 +115,33 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>(
     {}
   );
+
+  // Toast notifications for server action results
+  useEffect(() => {
+    if (!state) return;
+
+    if (state.error) {
+      toast({
+        variant: "destructive",
+        title: "Unable to save product",
+        description: state.error,
+      });
+    }
+
+    if (state.success) {
+      toast({
+        variant: "success",
+        title: isNew ? "Product created" : "Product updated",
+        description: "Your changes have been saved.",
+      });
+
+      if (state.redirectTo) {
+        router.push(state.redirectTo);
+      } else {
+        router.refresh();
+      }
+    }
+  }, [state, toast, isNew, router]);
 
   // Generate slug from title
   const generateSlug = (title: string) => {
@@ -212,38 +250,33 @@ export function ProductForm({ product, categories }: ProductFormProps) {
       return;
     }
 
-    await deleteProduct(product.id);
+    const result = await deleteProduct(product.id);
+    if (result.error) {
+      toast({
+        variant: "destructive",
+        title: "Delete failed",
+        description: result.error,
+      });
+      return;
+    }
+    toast({
+      variant: "success",
+      title: "Product deleted",
+      description: "The product has been removed.",
+    });
+    if (result.redirectTo) router.push(result.redirectTo);
   };
 
   const tabConfig = [
     { id: "basic", label: "Basic Info", icon: "📝" },
     { id: "pricing", label: "Pricing & Inventory", icon: "💰" },
+    { id: "specs", label: "Specifications", icon: "📋", disabled: isNew },
     { id: "images", label: "Images", icon: "🖼️", disabled: isNew },
     { id: "seo", label: "SEO", icon: "🔍" },
   ];
 
   return (
     <form action={formAction} className="max-w-7xl mx-auto text-black">
-      {state?.error && (
-        <div className="mb-6 rounded-lg bg-red-50 border border-red-200 p-4">
-          <div className="flex items-center">
-            <span className="text-red-400 text-xl mr-3">⚠️</span>
-            <div className="text-sm text-red-800">{state.error}</div>
-          </div>
-        </div>
-      )}
-
-      {state?.success && (
-        <div className="mb-6 rounded-lg bg-green-50 border border-green-200 p-4">
-          <div className="flex items-center">
-            <span className="text-green-400 text-xl mr-3">✓</span>
-            <div className="text-sm text-green-800">
-              Product saved successfully!
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Enhanced Tabs */}
       <div className="mb-8">
         <div className="border-b border-gray-200 bg-white rounded-t-lg">
@@ -366,13 +399,12 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                 >
                   Description
                 </label>
-                <textarea
+                <RichTextEditor
                   name="description"
-                  id="description"
-                  rows={4}
                   value={formData.description}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2.5 transition-colors"
+                  onChange={(html) =>
+                    setFormData((prev) => ({ ...prev, description: html }))
+                  }
                   placeholder="Describe your product in detail..."
                 />
               </div>
@@ -458,7 +490,9 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                     onChange={handleInputChange}
                     className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm font-medium text-gray-900">⭐ Featured</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    ⭐ Featured
+                  </span>
                 </label>
                 <label className="inline-flex items-center gap-2">
                   <input
@@ -468,7 +502,9 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                     onChange={handleInputChange}
                     className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm font-medium text-gray-900">🏆 Bestseller</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    🏆 Bestseller
+                  </span>
                 </label>
                 <label className="inline-flex items-center gap-2">
                   <input
@@ -478,7 +514,9 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                     onChange={handleInputChange}
                     className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm font-medium text-gray-900">✨ New arrival</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    ✨ New arrival
+                  </span>
                 </label>
                 <label className="inline-flex items-center gap-2">
                   <input
@@ -488,7 +526,9 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                     onChange={handleInputChange}
                     className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm font-medium text-gray-900">🏷️ On sale</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    🏷️ On sale
+                  </span>
                 </label>
               </div>
             </div>
@@ -638,7 +678,9 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                       placeholder="0"
                     />
                     {errors.quantity && (
-                      <p className="mt-1 text-sm text-red-600">{errors.quantity}</p>
+                      <p className="mt-1 text-sm text-red-600">
+                        {errors.quantity}
+                      </p>
                     )}
                   </div>
                   <div>
@@ -668,7 +710,9 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                         onChange={handleInputChange}
                         className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
-                      <span className="text-sm font-medium text-gray-900">Track inventory</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        Track inventory
+                      </span>
                     </label>
                     <label className="inline-flex items-center gap-2">
                       <input
@@ -678,7 +722,9 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                         onChange={handleInputChange}
                         className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
-                      <span className="text-sm font-medium text-gray-900">Allow backorder</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        Allow backorder
+                      </span>
                     </label>
                   </div>
                 </div>
@@ -737,11 +783,38 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                         onChange={handleInputChange}
                         className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
-                      <span className="text-sm font-medium text-gray-900">Requires shipping</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        Requires shipping
+                      </span>
                     </label>
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Specifications Tab */}
+        {activeTab === "specs" && (
+          <div className="bg-white shadow-lg sm:rounded-lg border border-gray-200">
+            <div className="px-6 py-6 sm:p-8 space-y-6">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <span className="text-xl">📋</span>
+                Product specifications
+              </h3>
+              {isNew ? (
+                <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                  <span className="text-4xl mb-4 block">🧾</span>
+                  <p className="text-sm text-gray-500">
+                    Save the product first to add specifications.
+                  </p>
+                </div>
+              ) : (
+                <ProductSpecificationsEditor
+                  productId={product!.id}
+                  specifications={specifications}
+                />
+              )}
             </div>
           </div>
         )}
@@ -764,7 +837,8 @@ export function ProductForm({ product, categories }: ProductFormProps) {
               ) : (
                 <>
                   <p className="text-sm text-gray-500">
-                    Upload images. The first or selected primary image is used as the main product image.
+                    Upload images. The first or selected primary image is used
+                    as the main product image.
                   </p>
                   <ImageUpload
                     productId={product!.id}
@@ -924,31 +998,91 @@ export function ProductForm({ product, categories }: ProductFormProps) {
       <input type="hidden" name="title" value={formData.title} />
       <input type="hidden" name="slug" value={formData.slug} />
       <input type="hidden" name="description" value={formData.description} />
-      <input type="hidden" name="short_description" value={formData.short_description} />
+      <input
+        type="hidden"
+        name="short_description"
+        value={formData.short_description}
+      />
       <input type="hidden" name="category_id" value={formData.category_id} />
       <input type="hidden" name="status" value={formData.status} />
       <input type="hidden" name="visibility" value={formData.visibility} />
-      <input type="hidden" name="is_featured" value={formData.is_featured ? "true" : "false"} />
-      <input type="hidden" name="is_bestseller" value={formData.is_bestseller ? "true" : "false"} />
-      <input type="hidden" name="is_new_arrival" value={formData.is_new_arrival ? "true" : "false"} />
-      <input type="hidden" name="on_sale" value={formData.on_sale ? "true" : "false"} />
+      <input
+        type="hidden"
+        name="is_featured"
+        value={formData.is_featured ? "true" : "false"}
+      />
+      <input
+        type="hidden"
+        name="is_bestseller"
+        value={formData.is_bestseller ? "true" : "false"}
+      />
+      <input
+        type="hidden"
+        name="is_new_arrival"
+        value={formData.is_new_arrival ? "true" : "false"}
+      />
+      <input
+        type="hidden"
+        name="on_sale"
+        value={formData.on_sale ? "true" : "false"}
+      />
       <input type="hidden" name="price" value={formData.price} />
-      <input type="hidden" name="compare_at_price" value={formData.compare_at_price} />
+      <input
+        type="hidden"
+        name="compare_at_price"
+        value={formData.compare_at_price}
+      />
       <input type="hidden" name="cost_price" value={formData.cost_price} />
       <input type="hidden" name="sku" value={formData.sku} />
       <input type="hidden" name="quantity" value={formData.quantity} />
-      <input type="hidden" name="low_stock_threshold" value={formData.low_stock_threshold} />
-      <input type="hidden" name="track_inventory" value={formData.track_inventory ? "true" : "false"} />
-      <input type="hidden" name="allow_backorder" value={formData.allow_backorder ? "true" : "false"} />
+      <input
+        type="hidden"
+        name="low_stock_threshold"
+        value={formData.low_stock_threshold}
+      />
+      <input
+        type="hidden"
+        name="track_inventory"
+        value={formData.track_inventory ? "true" : "false"}
+      />
+      <input
+        type="hidden"
+        name="allow_backorder"
+        value={formData.allow_backorder ? "true" : "false"}
+      />
       <input type="hidden" name="weight" value={formData.weight} />
       <input type="hidden" name="video_url" value={formData.video_url} />
-      <input type="hidden" name="requires_shipping" value={formData.requires_shipping ? "true" : "false"} />
-      <input type="hidden" name="shipping_class" value={formData.shipping_class} />
-      <input type="hidden" name="featured_image" value={product?.featured_image ?? ""} />
-      <input type="hidden" name="gallery_images" value={JSON.stringify(product?.gallery_images ?? [])} />
+      <input
+        type="hidden"
+        name="requires_shipping"
+        value={formData.requires_shipping ? "true" : "false"}
+      />
+      <input
+        type="hidden"
+        name="shipping_class"
+        value={formData.shipping_class}
+      />
+      <input
+        type="hidden"
+        name="featured_image"
+        value={product?.featured_image ?? ""}
+      />
+      <input
+        type="hidden"
+        name="gallery_images"
+        value={JSON.stringify(product?.gallery_images ?? [])}
+      />
       <input type="hidden" name="meta_title" value={formData.meta_title} />
-      <input type="hidden" name="meta_description" value={formData.meta_description} />
-      <input type="hidden" name="meta_keywords" value={formData.meta_keywords} />
+      <input
+        type="hidden"
+        name="meta_description"
+        value={formData.meta_description}
+      />
+      <input
+        type="hidden"
+        name="meta_keywords"
+        value={formData.meta_keywords}
+      />
     </form>
   );
 }
