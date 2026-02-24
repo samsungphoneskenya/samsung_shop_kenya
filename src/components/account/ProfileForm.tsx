@@ -3,12 +3,16 @@
 import { useActionState } from "react";
 import { updateCustomerProfile } from "@/lib/actions/account-actions";
 import type { Database } from "@/types/database.types";
+import { logout } from "@/lib/auth/actions";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
 export function ProfileForm({ profile }: { profile: Profile }) {
   const [state, formAction] = useActionState(
-    async (_prev: { error?: string; success?: boolean } | null, formData: FormData) => {
+    async (
+      _prev: { error?: string; success?: boolean } | null,
+      formData: FormData
+    ) => {
       return updateCustomerProfile(formData);
     },
     null
@@ -27,7 +31,10 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         </div>
       )}
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+        <label
+          htmlFor="email"
+          className="block text-sm font-medium text-gray-700 mb-1"
+        >
           Email
         </label>
         <input
@@ -40,7 +47,10 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         <p className="mt-1 text-xs text-gray-500">Email cannot be changed.</p>
       </div>
       <div>
-        <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
+        <label
+          htmlFor="fullName"
+          className="block text-sm font-medium text-gray-700 mb-1"
+        >
           Full name
         </label>
         <input
@@ -53,7 +63,10 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         />
       </div>
       <div>
-        <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+        <label
+          htmlFor="phone"
+          className="block text-sm font-medium text-gray-700 mb-1"
+        >
           Phone
         </label>
         <input
@@ -65,12 +78,21 @@ export function ProfileForm({ profile }: { profile: Profile }) {
           placeholder="e.g. 07XXXXXXXX"
         />
       </div>
-      <button
-        type="submit"
-        className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 transition-colors"
-      >
-        Save changes
-      </button>
+      <div className="flex space-between w-full">
+        <button
+          type="submit"
+          className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 transition-colors"
+        >
+          Save changes
+        </button>
+        <button
+          type="submit"
+          onClick={logout}
+          className="ml-3 cursor-pointer inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+        >
+          Logout
+        </button>
+      </div>
     </form>
   );
 }
