@@ -8,6 +8,7 @@ import type {
   ProductReview,
 } from "@/lib/actions/storefront-actions";
 import { SafeImage } from "@/components/shared/SafeImage";
+import { useToast } from "@/components/ui/use-toast";
 
 type Props = {
   product: StorefrontProduct;
@@ -19,6 +20,7 @@ type TabId = "description" | "specs" | "reviews";
 
 export function ProductDetailTabs({ product, specifications, reviews }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>("description");
+  const { toast } = useToast();
 
   const hasDescription = !!product.description;
   const hasSpecs = specifications.length > 0;
@@ -37,7 +39,9 @@ export function ProductDetailTabs({ product, specifications, reviews }: Props) {
     },
     {
       id: "reviews",
-      label: `Reviews${product.review_count ? ` (${product.review_count})` : ""}`,
+      label: `Reviews${
+        product.review_count ? ` (${product.review_count})` : ""
+      }`,
       disabled: !hasReviews,
     },
   ];
@@ -59,7 +63,22 @@ export function ProductDetailTabs({ product, specifications, reviews }: Props) {
             <button
               key={tab.id}
               type="button"
-              onClick={() => !tab.disabled && setActiveTab(tab.id)}
+              onClick={() => {
+                if (tab.disabled) {
+                  const label =
+                    tab.id === "specs"
+                      ? "Specifications aren’t available yet."
+                      : tab.id === "reviews"
+                      ? "No reviews yet for this product."
+                      : "This section isn’t available yet.";
+                  toast({
+                    title: "Coming soon",
+                    description: label,
+                  });
+                  return;
+                }
+                setActiveTab(tab.id);
+              }}
               className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
                 tab.disabled
                   ? "text-gray-400 border-transparent cursor-not-allowed"
@@ -88,9 +107,10 @@ export function ProductDetailTabs({ product, specifications, reviews }: Props) {
               </div>
             )}
             {product.description ? (
-              <p className="text-sm leading-relaxed text-gray-700 whitespace-pre-line">
-                {product.description}
-              </p>
+              <div
+                className="prose prose-sm sm:prose max-w-none text-gray-700"
+                dangerouslySetInnerHTML={{ __html: product.description }}
+              />
             ) : (
               <p className="text-sm text-gray-500">
                 Detailed description will be available soon.
@@ -214,4 +234,3 @@ export function ProductDetailTabs({ product, specifications, reviews }: Props) {
     </section>
   );
 }
-
