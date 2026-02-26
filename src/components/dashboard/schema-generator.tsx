@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useToast } from "@/components/ui/use-toast";
 
 type SchemaGeneratorProps = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -12,6 +13,7 @@ export function SchemaGenerator({ entityData }: SchemaGeneratorProps) {
     "Product" | "Organization" | "WebSite" | "Article" | "FAQPage"
   >("Product");
   const [schema, setSchema] = useState("");
+  const { toast } = useToast();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const generateProductSchema = (product: any) => {
@@ -193,7 +195,11 @@ export function SchemaGenerator({ entityData }: SchemaGeneratorProps) {
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(schema);
-    alert("Schema copied to clipboard!");
+    toast({
+      variant: "success",
+      title: "Copied",
+      description: "Schema JSON-LD copied to clipboard.",
+    });
   };
 
   return (
@@ -201,7 +207,7 @@ export function SchemaGenerator({ entityData }: SchemaGeneratorProps) {
       {/* Info */}
       <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
         <div className="flex">
-          <div className="flex-shrink-0">
+          <div className="shrink-0">
             <svg
               className="h-5 w-5 text-blue-400"
               fill="currentColor"
@@ -343,7 +349,7 @@ export function SchemaGenerator({ entityData }: SchemaGeneratorProps) {
 
             <div className="mt-4 bg-yellow-50 border-l-4 border-yellow-400 p-4">
               <div className="flex">
-                <div className="flex-shrink-0">
+                <div className="shrink-0">
                   <svg
                     className="h-5 w-5 text-yellow-400"
                     fill="currentColor"

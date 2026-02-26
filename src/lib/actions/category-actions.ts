@@ -3,7 +3,6 @@
 import { createClient } from "@/lib/db/client";
 import { getCurrentUser } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 export type Category = {
   id: string;
@@ -206,7 +205,11 @@ export async function getProductsByCategory(
   return data;
 }
 
-type CategoryActionResult = { error?: string; success?: boolean };
+type CategoryActionResult = {
+  error?: string;
+  success?: boolean;
+  redirectTo?: string;
+};
 
 const VALID_STATUS = ["published", "draft", "archived"] as const;
 
@@ -222,17 +225,29 @@ export async function createCategory(
   if (!user) return { error: "Unauthorized" };
 
   const name = (formData.get("name") as string)?.trim();
-  const slug = (formData.get("slug") as string)?.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/^-+|-+$/g, "") || null;
+  const slug =
+    (formData.get("slug") as string)
+      ?.trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "-")
+      .replace(/^-+|-+$/g, "") || null;
   const description = (formData.get("description") as string)?.trim() || null;
   const parent_id = (formData.get("parent_id") as string) || null;
-  const display_order = parseInt((formData.get("display_order") as string) || "0", 10) || 0;
+  const display_order =
+    parseInt((formData.get("display_order") as string) || "0", 10) || 0;
   const status = (formData.get("status") as string) || "published";
   const image_url = (formData.get("image_url") as string)?.trim() || null;
   const meta_title = (formData.get("meta_title") as string)?.trim() || null;
-  const meta_description = (formData.get("meta_description") as string)?.trim() || null;
+  const meta_description =
+    (formData.get("meta_description") as string)?.trim() || null;
 
   if (!name) return { error: "Category name is required" };
-  const finalSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const finalSlug =
+    slug ||
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
   if (!finalSlug) return { error: "URL slug is required" };
   if (!VALID_STATUS.includes(status as (typeof VALID_STATUS)[number])) {
     return { error: "Invalid status" };
@@ -280,7 +295,7 @@ export async function createCategory(
   }
 
   revalidatePath("/dashboard/categories");
-  redirect(`/dashboard/categories/${category.id}`);
+  return { success: true, redirectTo: `/dashboard/categories/${category.id}` };
 }
 
 /**
@@ -296,17 +311,29 @@ export async function updateCategory(
   if (!user) return { error: "Unauthorized" };
 
   const name = (formData.get("name") as string)?.trim();
-  const slug = (formData.get("slug") as string)?.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/^-+|-+$/g, "") || null;
+  const slug =
+    (formData.get("slug") as string)
+      ?.trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "-")
+      .replace(/^-+|-+$/g, "") || null;
   const description = (formData.get("description") as string)?.trim() || null;
   const parent_id = (formData.get("parent_id") as string) || null;
-  const display_order = parseInt((formData.get("display_order") as string) || "0", 10) ?? 0;
+  const display_order =
+    parseInt((formData.get("display_order") as string) || "0", 10) ?? 0;
   const status = (formData.get("status") as string) || "published";
   const image_url = (formData.get("image_url") as string)?.trim() || null;
   const meta_title = (formData.get("meta_title") as string)?.trim() || null;
-  const meta_description = (formData.get("meta_description") as string)?.trim() || null;
+  const meta_description =
+    (formData.get("meta_description") as string)?.trim() || null;
 
   if (!name) return { error: "Category name is required" };
-  const finalSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const finalSlug =
+    slug ||
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
   if (!finalSlug) return { error: "URL slug is required" };
   if (!VALID_STATUS.includes(status as (typeof VALID_STATUS)[number])) {
     return { error: "Invalid status" };

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { updateUserRole } from "@/lib/actions/user-actions";
 import { Database } from "@/types/database.types";
+import { useToast } from "@/components/ui/use-toast";
 
 type User = Database["public"]["Tables"]["profiles"]["Row"];
 
@@ -21,6 +22,7 @@ export function UsersTable({
 }: UsersTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { toast } = useToast();
   const [search, setSearch] = useState(currentSearch || "");
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
 
@@ -58,12 +60,25 @@ export function UsersTable({
     try {
       const result = await updateUserRole(userId, newRole);
       if (result.error) {
-        alert(result.error);
+        toast({
+          variant: "destructive",
+          title: "Unable to update role",
+          description: result.error,
+        });
       } else {
+        toast({
+          variant: "success",
+          title: "Role updated",
+          description: "The user role has been updated successfully.",
+        });
         router.refresh();
       }
     } catch {
-      alert("Failed to update role");
+      toast({
+        variant: "destructive",
+        title: "Update failed",
+        description: "Something went wrong while updating this role.",
+      });
     } finally {
       setUpdatingUserId(null);
     }
@@ -194,7 +209,7 @@ export function UsersTable({
                     <tr key={user.id} className="hover:bg-gray-50">
                       <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
                         <div className="flex items-center">
-                          <div className="h-10 w-10 flex-shrink-0">
+                          <div className="h-10 w-10 shrink-0">
                             <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
                               <span className="text-sm font-medium text-gray-600">
                                 {user.full_name?.charAt(0).toUpperCase() ||

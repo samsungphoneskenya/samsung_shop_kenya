@@ -10,10 +10,58 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { getPublishedBlogs } from "@/lib/queries/blog-queries";
 
-export default function Footer() {
+export default async function Footer() {
+  const blogs = await getPublishedBlogs(3);
+
   return (
     <footer className="bg-gray-900 text-white">
+      {/* From our blog / FAQ strip */}
+      {blogs.length > 0 && (
+        <div className="border-b border-gray-800 bg-gray-950/70">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="flex items-start justify-between gap-6 flex-col sm:flex-row">
+              <div>
+                <p className="text-xs font-semibold tracking-[0.25em] uppercase text-sky-400 mb-2">
+                  From our blog
+                </p>
+                <h3 className="text-lg font-semibold text-white">
+                  Tips, FAQs & guides for getting more from your Galaxy devices
+                </h3>
+              </div>
+              <Link
+                href="/blog"
+                className="text-xs font-semibold text-sky-300 hover:text-sky-100"
+              >
+                View all articles →
+              </Link>
+            </div>
+            <div className="mt-5 grid gap-4 sm:grid-cols-3">
+              {blogs.map((blog) => (
+                <Link
+                  key={blog.id}
+                  href={`/blog/${blog.slug}`}
+                  className="group rounded-xl border border-gray-800 bg-gray-900/70 px-4 py-3 text-left hover:border-sky-400 hover:bg-gray-900 transition-colors"
+                >
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-sky-400 mb-1">
+                    {blog.category || "Article"}
+                  </p>
+                  <h4 className="text-sm font-semibold text-white group-hover:text-sky-50 line-clamp-2">
+                    {blog.title}
+                  </h4>
+                  {blog.meta_description && (
+                    <p className="mt-1 text-xs text-gray-300 line-clamp-2">
+                      {blog.meta_description}
+                    </p>
+                  )}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Newsletter Section */}
       <div className="bg-black py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -175,7 +223,7 @@ export default function Footer() {
                   Samsung Phones Nairobi
                 </p>
                 <div className="flex items-start space-x-3 mb-2">
-                  <MapPin className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                  <MapPin className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
                   <span>
                     Lotus Plaza 1st Floor
                     <br />
@@ -198,7 +246,7 @@ export default function Footer() {
                     href="tel:+254768378439"
                     className="flex items-center space-x-3 hover:text-white transition-colors"
                   >
-                    <Phone className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                    <Phone className="h-4 w-4 text-blue-500 shrink-0" />
                     <span>0768378439</span>
                   </a>
                   <a
@@ -214,7 +262,7 @@ export default function Footer() {
                     href="mailto:support@samsungstore.ke"
                     className="flex items-center space-x-3 hover:text-white transition-colors"
                   >
-                    <Mail className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                    <Mail className="h-4 w-4 text-blue-500 shrink-0" />
                     <span>support@samsungstore.ke</span>
                   </a>
                 </div>

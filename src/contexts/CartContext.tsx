@@ -8,6 +8,7 @@ import {
   useEffect,
   ReactNode,
 } from "react";
+import { useToast } from "@/components/ui/use-toast";
 
 type CartItem = {
   id: string;
@@ -64,6 +65,7 @@ function saveCartToStorage(items: CartItem[]) {
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isValidating, setIsValidating] = useState(true);
+  const { toast } = useToast();
 
   // On mount: load from storage then validate every product_id against the DB
   useEffect(() => {
@@ -137,9 +139,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [items, isValidating]);
 
   const addItem = (item: Omit<CartItem, "quantity">) => {
+    let existed = false;
+    let nextQty = 1;
+
     setItems((current) => {
       const existing = current.find((i) => i.product_id === item.product_id);
       if (existing) {
+        existed = true;
+        nextQty = existing.quantity + 1;
         return current.map((i) =>
           i.product_id === item.product_id
             ? { ...i, quantity: i.quantity + 1 }
@@ -147,6 +154,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
         );
       }
       return [...current, { ...item, quantity: 1 }];
+    });
+
+    toast({
+      variant: "success",
+      title: "Added to cart",
+      description: existed ? `${item.title} (Qty: ${nextQty})` : item.title,
     });
   };
 

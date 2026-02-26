@@ -1,12 +1,17 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createCategory, updateCategory, deleteCategory } from "@/lib/actions/category-actions";
+import {
+  createCategory,
+  updateCategory,
+  deleteCategory,
+} from "@/lib/actions/category-actions";
 import { CategoryImageUpload } from "@/components/dashboard/category-image-upload";
 import { Database } from "@/types/database.types";
 import Link from "next/link";
+import { useToast } from "@/components/ui/use-toast";
 
 type CategoryRow = Database["public"]["Tables"]["categories"]["Row"];
 
@@ -45,6 +50,7 @@ type FormData = {
 
 export function CategoryForm({ category, parentOptions }: CategoryFormProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const isNew = !category;
   const [activeTab, setActiveTab] = useState("basic");
 
@@ -52,6 +58,29 @@ export function CategoryForm({ category, parentOptions }: CategoryFormProps) {
     ? createCategory
     : updateCategory.bind(null, category!.id);
   const [state, formAction] = useActionState(action, undefined);
+
+  useEffect(() => {
+    if (!state) return;
+
+    if (state.error) {
+      toast({
+        variant: "destructive",
+        title: "Unable to save category",
+        description: state.error,
+      });
+    }
+
+    if (state.success) {
+      toast({
+        variant: "success",
+        title: isNew ? "Category created" : "Category updated",
+        description: "Your changes have been saved.",
+      });
+      if ("redirectTo" in state && state.redirectTo)
+        router.push(state.redirectTo);
+      else router.refresh();
+    }
+  }, [state, toast, isNew, router]);
 
   const initialFormData: FormData = {
     name: category?.name ?? "",
@@ -119,13 +148,27 @@ export function CategoryForm({ category, parentOptions }: CategoryFormProps) {
       return;
     try {
       await deleteCategory(category.id);
+      toast({
+        variant: "success",
+        title: "Category deleted",
+        description: "The category has been removed.",
+      });
       router.push("/dashboard/categories");
     } catch {
-      // Error already shown by deleteCategory / alert in table
+      toast({
+        variant: "destructive",
+        title: "Delete failed",
+        description: "Unable to delete this category.",
+      });
     }
   };
 
-  const tabConfig: { id: string; label: string; icon: string; disabled?: boolean }[] = [
+  const tabConfig: {
+    id: string;
+    label: string;
+    icon: string;
+    disabled?: boolean;
+  }[] = [
     { id: "basic", label: "Basic Info", icon: "📝" },
     { id: "image", label: "Image", icon: "🖼️", disabled: isNew },
     { id: "seo", label: "SEO", icon: "🔍" },
@@ -133,26 +176,6 @@ export function CategoryForm({ category, parentOptions }: CategoryFormProps) {
 
   return (
     <form action={formAction} className="max-w-4xl mx-auto text-black">
-      {state?.error && (
-        <div className="mb-6 rounded-lg bg-red-50 border border-red-200 p-4">
-          <div className="flex items-center">
-            <span className="text-red-400 text-xl mr-3">⚠️</span>
-            <div className="text-sm text-red-800">{state.error}</div>
-          </div>
-        </div>
-      )}
-
-      {state?.success && (
-        <div className="mb-6 rounded-lg bg-green-50 border border-green-200 p-4">
-          <div className="flex items-center">
-            <span className="text-green-400 text-xl mr-3">✓</span>
-            <div className="text-sm text-green-800">
-              Category saved successfully!
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="mb-8">
         <div className="border-b border-gray-200 bg-white rounded-t-lg">
           <nav className="-mb-px flex" aria-label="Tabs">
@@ -286,7 +309,8 @@ export function CategoryForm({ category, parentOptions }: CategoryFormProps) {
                     ))}
                   </select>
                   <p className="mt-2 text-xs text-gray-500">
-                    Leave empty for a main category; select one for a subcategory.
+                    Leave empty for a main category; select one for a
+                    subcategory.
                   </p>
                 </div>
 
@@ -349,7 +373,8 @@ export function CategoryForm({ category, parentOptions }: CategoryFormProps) {
                 Category Image
               </h3>
               <p className="text-sm text-gray-500">
-                Banner image for this category. Used on category pages and navigation.
+                Banner image for this category. Used on category pages and
+                navigation.
               </p>
               <CategoryImageUpload
                 categoryId={category!.id}
@@ -385,7 +410,8 @@ export function CategoryForm({ category, parentOptions }: CategoryFormProps) {
                   placeholder="50–60 characters"
                 />
                 <p className="mt-2 text-xs text-gray-500">
-                  {formData.meta_title.length}/60. Leave empty to use category name.
+                  {formData.meta_title.length}/60. Leave empty to use category
+                  name.
                 </p>
               </div>
 
@@ -443,11 +469,19 @@ export function CategoryForm({ category, parentOptions }: CategoryFormProps) {
       <input type="hidden" name="slug" value={formData.slug} />
       <input type="hidden" name="description" value={formData.description} />
       <input type="hidden" name="parent_id" value={formData.parent_id} />
-      <input type="hidden" name="display_order" value={formData.display_order} />
+      <input
+        type="hidden"
+        name="display_order"
+        value={formData.display_order}
+      />
       <input type="hidden" name="status" value={formData.status} />
       <input type="hidden" name="image_url" value={category?.image_url ?? ""} />
       <input type="hidden" name="meta_title" value={formData.meta_title} />
-      <input type="hidden" name="meta_description" value={formData.meta_description} />
+      <input
+        type="hidden"
+        name="meta_description"
+        value={formData.meta_description}
+      />
     </form>
   );
 }

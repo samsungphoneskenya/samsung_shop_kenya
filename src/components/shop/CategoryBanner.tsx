@@ -1,34 +1,25 @@
-import Image from "next/image";
 import Link from "next/link";
+import { createClient } from "@/lib/db/client";
+import { SafeImage } from "@/components/shared/SafeImage";
 
-export default function CategoryBanner() {
-  const categories = [
-    {
-      name: "Phones",
-      image: "/images/categoryimages/phones.jpeg",
-      link: "/shop?category=smartphones",
-    },
-    {
-      name: "Tablets",
-      image: "/images/categoryimages/tablets.jpeg",
-      link: "/shop?category=tablets",
-    },
-    {
-      name: "Watches",
-      image: "/images/categoryimages/watches.jpeg",
-      link: "/shop?category=watches",
-    },
-    {
-      name: "Buds & Earphones",
-      image: "/images/categoryimages/budsandearphones.jpeg",
-      link: "/shop?category=buds",
-    },
-    {
-      name: "Other Accessories",
-      image: "/images/categoryimages/otheraccessories.jpeg",
-      link: "/shop?category=accessories",
-    },
-  ];
+const FALLBACK_IMAGE = "/images/logo.png";
+
+export default async function CategoryBanner() {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("categories")
+    .select("id,name,slug,image_url,display_order")
+    .is("parent_id", null)
+    .eq("status", "published")
+    .order("display_order", { ascending: true });
+
+  const categories =
+    data?.map((c) => ({
+      id: c.id,
+      name: c.name,
+      image: c.image_url || FALLBACK_IMAGE,
+      link: `/shop?category=${c.slug}`,
+    })) ?? [];
 
   return (
     <section className="py-12 bg-white border-b border-gray-100">
@@ -37,20 +28,20 @@ export default function CategoryBanner() {
           {categories.map((category) => {
             return (
               <Link
-                key={category.name}
+                key={category.id}
                 href={category.link}
                 className="group bg-white rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border border-gray-200 hover:border-black"
               >
                 <div className="flex flex-col">
                   <div className="relative h-40 overflow-hidden">
-                    <Image
+                    <SafeImage
                       src={category.image}
                       alt={category.name}
-                      width={1200}
-                      height={1200}
+                      fill
+                      sizes="(min-width: 1024px) 16rem, (min-width: 768px) 25vw, 50vw"
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+                    <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent"></div>
                   </div>
                   <div className="p-4 text-center">
                     <h3 className="font-semibold text-gray-900 group-hover:text-black transition-colors mb-2">

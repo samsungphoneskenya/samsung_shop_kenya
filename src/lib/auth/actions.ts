@@ -136,17 +136,15 @@ export async function signup(formData: FormData): Promise<SignupResult> {
   // create the customer profile immediately and send them to their account.
   if (user) {
     // Ensure a corresponding profile with the `customer` role exists
-    await supabase
-      .from("profiles")
-      .upsert(
-        {
-          id: user.id,
-          email,
-          full_name: fullName,
-          role: "customer",
-        },
-        { onConflict: "id" }
-      );
+    await supabase.from("profiles").upsert(
+      {
+        id: user.id,
+        email,
+        full_name: fullName,
+        role: "customer",
+      },
+      { onConflict: "id" }
+    );
 
     revalidatePath("/", "layout");
     redirect("/account");
@@ -168,7 +166,7 @@ export async function logout() {
   await supabase.auth.signOut();
 
   revalidatePath("/", "layout");
-  redirect("/login");
+  redirect("/");
 }
 
 /**
@@ -227,7 +225,9 @@ export async function updatePassword(formData: FormData): Promise<LoginResult> {
   }
 
   revalidatePath("/", "layout");
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   let redirectPath = "/account";
   if (user) {
     const { data: profile } = await supabase

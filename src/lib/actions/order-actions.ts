@@ -3,7 +3,6 @@
 import { createClient } from "@/lib/db/client";
 import { getCurrentUser } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import {
   CreateOrderInput,
   UpdateOrderInput,
@@ -18,6 +17,7 @@ type ActionResult = {
   success?: boolean;
   orderId?: string;
   orderNumber?: string;
+  redirectTo?: string;
 };
 
 /**
@@ -25,19 +25,17 @@ type ActionResult = {
  * This is a simplified flow that lets staff quickly create an order
  * without going through the public checkout/cart.
  */
-export async function createOrderFromDashboard(
-  payload: {
-    customer_name: string;
-    customer_phone: string;
-    customer_email?: string;
-    delivery_location: string;
-    delivery_notes?: string | null;
-    payment_method: string;
-    subtotal: number;
-    tax_amount?: number;
-    shipping_fee?: number;
-  }
-): Promise<ActionResult> {
+export async function createOrderFromDashboard(payload: {
+  customer_name: string;
+  customer_phone: string;
+  customer_email?: string;
+  delivery_location: string;
+  delivery_notes?: string | null;
+  payment_method: string;
+  subtotal: number;
+  tax_amount?: number;
+  shipping_fee?: number;
+}): Promise<ActionResult> {
   const user = await getCurrentUser();
   if (!user) {
     return { error: "Unauthorized" };
@@ -336,7 +334,10 @@ export async function confirmOrderPayment(
 
     if (fetchError) throw fetchError;
 
-    const updates: { payment_status: string; payment_reference?: string | null } = {
+    const updates: {
+      payment_status: string;
+      payment_reference?: string | null;
+    } = {
       payment_status: "paid",
       payment_reference: paymentReference ?? null,
     };
@@ -397,18 +398,31 @@ export async function sendOrderWhatsApp(
  */
 export async function deleteOrder(orderId: string) {
   const user = await getCurrentUser();
-  if (!user) {
-    throw new Error("Unauthorized");
-  }
+  if (!user) return { error: "Unauthorized" } as ActionResult;
 
   const supabase = await createClient();
 
-  const { error } = await supabase.from("orders").delete().eq("id", orderId);
+  try {
+    // Best-effort cleanup of items first (in case FK isn't cascading).
+    const { error: itemsError } = await supabase
+      .from("order_items")
+      .delete()
+      .eq("order_id", orderId);
 
-  if (error) {
-    throw new Error(error.message);
+    if (itemsError) throw itemsError;
+
+    const { error: orderError } = await supabase
+      .from("orders")
+      .delete()
+      .eq("id", orderId);
+
+    if (orderError) throw orderError;
+
+    revalidatePath("/dashboard/orders");
+    return { success: true, redirectTo: "/dashboard/orders" } as ActionResult;
+  } catch (error: any) {
+    return {
+      error: error?.message || "Failed to delete order",
+    } as ActionResult;
   }
-
-  revalidatePath("/dashboard/orders");
-  redirect("/dashboard/orders");
 }

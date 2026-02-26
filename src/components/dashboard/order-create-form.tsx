@@ -1,8 +1,9 @@
-"use client"
+"use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createOrderFromDashboard } from "@/lib/actions/order-actions";
+import { useToast } from "@/components/ui/use-toast";
 
 type FormState =
   | {
@@ -15,6 +16,7 @@ type FormState =
 
 export function OrderCreateForm() {
   const router = useRouter();
+  const { toast } = useToast();
 
   const createAction = async (
     _prevState: FormState,
@@ -71,6 +73,24 @@ export function OrderCreateForm() {
     undefined
   );
 
+  useEffect(() => {
+    if (!state) return;
+    if (state.error) {
+      toast({
+        variant: "destructive",
+        title: "Unable to create order",
+        description: state.error,
+      });
+    }
+    if (state.success) {
+      toast({
+        variant: "success",
+        title: "Order created",
+        description: state.orderNumber ?? "Order created successfully.",
+      });
+    }
+  }, [state, toast]);
+
   const totalPreview =
     Number(
       (typeof window !== "undefined"
@@ -103,12 +123,6 @@ export function OrderCreateForm() {
         Create an order from the dashboard for walk-in customers or phone
         orders.
       </p>
-
-      {state?.error && (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          {state.error}
-        </div>
-      )}
 
       {/* Customer */}
       <div className="grid gap-4 sm:grid-cols-2">
@@ -285,4 +299,3 @@ export function OrderCreateForm() {
     </form>
   );
 }
-

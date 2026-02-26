@@ -4,6 +4,8 @@ import Link from "next/link";
 import { deleteCategory } from "@/lib/actions/category-actions";
 import { Database } from "@/types/database.types";
 import { SafeImage } from "@/components/shared/SafeImage";
+import { useToast } from "@/components/ui/use-toast";
+import { useRouter } from "next/navigation";
 
 type CategoryRow = Database["public"]["Tables"]["categories"]["Row"];
 
@@ -16,6 +18,9 @@ type CategoriesTableProps = {
 };
 
 export function CategoriesTable({ categories }: CategoriesTableProps) {
+  const router = useRouter();
+  const { toast } = useToast();
+
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Are you sure you want to delete "${name}"?`)) {
       return;
@@ -23,9 +28,19 @@ export function CategoriesTable({ categories }: CategoriesTableProps) {
 
     try {
       await deleteCategory(id);
+      router.refresh();
+      toast({
+        variant: "success",
+        title: "Category deleted",
+        description: `"${name}" has been removed.`,
+      });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      alert(error.message);
+      toast({
+        variant: "destructive",
+        title: "Delete failed",
+        description: error?.message ?? "Unable to delete this category.",
+      });
     }
   };
 
@@ -84,7 +99,7 @@ export function CategoriesTable({ categories }: CategoriesTableProps) {
                   categories.map((category) => (
                     <tr key={category.id}>
                       <td className="whitespace-nowrap py-3 pl-4 pr-3 sm:pl-6">
-                        <div className="h-10 w-10 flex-shrink-0 rounded-md overflow-hidden bg-gray-100">
+                        <div className="h-10 w-10 shrink-0 rounded-md overflow-hidden bg-gray-100">
                           {category.image_url ? (
                             <SafeImage
                               src={category.image_url}

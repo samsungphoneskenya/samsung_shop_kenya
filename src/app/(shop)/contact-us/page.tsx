@@ -1,4 +1,7 @@
 import { getPageBySlug } from "@/lib/actions/page-actions";
+import Header from "@/components/shared/Header";
+import Footer from "@/components/shared/Footer";
+import FloatingButtons from "@/components/shop/FloatingButtons";
 import { ContactContent } from "@/components/shop/ContactContent";
 import type { ContactSections } from "@/lib/types/page-sections";
 
@@ -14,5 +17,12 @@ export default async function Contact() {
   const page = await getPageBySlug("contact-us");
   const sections = (page?.sections ?? {}) as ContactSections;
 
-  return <ContactContent sections={sections} />;
+  return (
+    <div className="min-h-screen bg-white">
+      <Header />
+      <ContactContent sections={sections} />
+      <Footer />
+      <FloatingButtons />
+    </div>
+  );
 }

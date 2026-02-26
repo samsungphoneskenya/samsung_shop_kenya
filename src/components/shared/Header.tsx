@@ -16,11 +16,16 @@ import { useRouter } from "next/navigation";
 import { SafeImage } from "@/components/shared/SafeImage";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  searchProducts,
-  type SearchResultProduct,
-} from "@/lib/actions/search-actions";
 import { NAV_TOP_LINKS, NAV_ACCESSORIES_LINKS } from "@/lib/constants/nav";
+
+type SearchResultProduct = {
+  id: string;
+  title: string;
+  slug: string;
+  price: number;
+  compare_at_price: number | null;
+  featured_image: string | null;
+};
 
 export default function Header() {
   const { getCartCount, getCartTotal } = useCart();
@@ -65,8 +70,22 @@ export default function Header() {
       }
 
       try {
-        const results = await searchProducts(searchQuery);
-        setSearchResults(results);
+        const params = new URLSearchParams({
+          q: searchQuery.trim(),
+          limit: "8",
+        });
+
+        const response = await fetch(`/api/search?${params.toString()}`);
+        if (!response.ok) {
+          setSearchResults([]);
+          return;
+        }
+
+        const data = (await response.json()) as {
+          results?: SearchResultProduct[];
+        };
+
+        setSearchResults(data.results ?? []);
         setShowResults(true);
       } catch (error) {
         console.error("Error searching products:", error);

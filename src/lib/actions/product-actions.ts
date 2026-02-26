@@ -3,7 +3,6 @@
 import { createClient } from "@/lib/db/client";
 import { getCurrentUser } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import {
   productInsertSchema,
   productUpdateSchema,
@@ -12,11 +11,10 @@ import {
 type ActionResult = {
   error?: string;
   success?: boolean;
+  redirectTo?: string;
 };
 
-function parseGalleryImages(
-  value: FormDataEntryValue | null
-): string[] | null {
+function parseGalleryImages(value: FormDataEntryValue | null): string[] | null {
   if (value == null || typeof value !== "string") return null;
   try {
     const arr = JSON.parse(value) as unknown;
@@ -74,11 +72,12 @@ export async function createProduct(
         | "published"
         | "archived"
         | "out_of_stock",
-      visibility: (formData.get("visibility") as
-        | "visible"
-        | "hidden"
-        | "search_only"
-        | null) ?? null,
+      visibility:
+        (formData.get("visibility") as
+          | "visible"
+          | "hidden"
+          | "search_only"
+          | null) ?? null,
       is_featured: isTruthy(formData.get("is_featured")),
       is_bestseller: isTruthy(formData.get("is_bestseller")),
       is_new_arrival: isTruthy(formData.get("is_new_arrival")),
@@ -102,7 +101,9 @@ export async function createProduct(
             .filter(Boolean)
         : null,
       published_at:
-        formData.get("status") === "published" ? new Date().toISOString() : null,
+        formData.get("status") === "published"
+          ? new Date().toISOString()
+          : null,
     };
 
     // Validate
@@ -129,12 +130,11 @@ export async function createProduct(
     if (error) throw error;
 
     revalidatePath("/dashboard/products");
+    return { success: true, redirectTo: "/dashboard/products" };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error("Create product error:", error);
     return { error: error.message || "Failed to create product" };
-  } finally {
-    redirect("/dashboard/products");
   }
 }
 
@@ -185,11 +185,12 @@ export async function updateProduct(
         | "published"
         | "archived"
         | "out_of_stock",
-      visibility: (formData.get("visibility") as
-        | "visible"
-        | "hidden"
-        | "search_only"
-        | null) ?? null,
+      visibility:
+        (formData.get("visibility") as
+          | "visible"
+          | "hidden"
+          | "search_only"
+          | null) ?? null,
       is_featured: isTruthy(formData.get("is_featured")),
       is_bestseller: isTruthy(formData.get("is_bestseller")),
       is_new_arrival: isTruthy(formData.get("is_new_arrival")),
@@ -213,7 +214,9 @@ export async function updateProduct(
             .filter(Boolean)
         : null,
       published_at:
-        formData.get("status") === "published" ? new Date().toISOString() : null,
+        formData.get("status") === "published"
+          ? new Date().toISOString()
+          : null,
     };
 
     // Validate
@@ -242,23 +245,21 @@ export async function updateProduct(
     revalidatePath("/dashboard/products");
     revalidatePath(`/dashboard/products/${productId}`);
 
-    return { success: true };
+    return { success: true, redirectTo: "/dashboard/products" };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error("Update product error:", error);
     return { error: error.message || "Failed to update product" };
-  } finally {
-    redirect("/dashboard/products");
   }
 }
 
 /**
  * Delete a product
  */
-export async function deleteProduct(productId: string) {
+export async function deleteProduct(productId: string): Promise<ActionResult> {
   const user = await getCurrentUser();
   if (!user) {
-    throw new Error("Unauthorized");
+    return { error: "Unauthorized" };
   }
 
   const supabase = await createClient();
@@ -269,11 +270,11 @@ export async function deleteProduct(productId: string) {
     .eq("id", productId);
 
   if (error) {
-    throw new Error(error.message);
+    return { error: error.message };
   }
 
   revalidatePath("/dashboard/products");
-  redirect("/dashboard/products");
+  return { success: true, redirectTo: "/dashboard/products" };
 }
 
 /**

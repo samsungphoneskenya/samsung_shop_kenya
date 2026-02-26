@@ -11,6 +11,8 @@ import ProductCard from "@/components/shop/ProductCard";
 import { ProductDetailTabs } from "@/components/shop/ProductDetailTabs";
 import { AddToCartButton } from "@/components/shop/AddToCartButton";
 import { FavouriteButton } from "@/components/shop/FavouriteButton";
+import { ProductImageGallery } from "@/components/shop/ProductImageGallery";
+import { ScrollToTopOnPathChange } from "@/components/shared/ScrollToTopOnPathChange";
 import {
   getProductBySlug,
   getRelatedProducts,
@@ -23,11 +25,14 @@ function buildSeoDescription(input: {
   short_description: string | null;
   description: string | null;
 }): string {
-  const source =
+  const raw =
     input.meta_description ||
     input.short_description ||
     input.description ||
     "";
+
+  // Strip HTML tags when building meta description from rich text.
+  const source = raw.replace(/<[^>]+>/g, " ");
 
   const trimmed = source.replace(/\s+/g, " ").trim();
   if (trimmed.length <= 160) return trimmed;
@@ -105,7 +110,10 @@ export default async function ProductPage({
       ? await getRelatedProducts(product.id, product.category_id, 4)
       : [];
 
-  const image = product.featured_image || product.gallery_images?.[0] || null;
+  const images = [
+    product.featured_image,
+    ...(product.gallery_images ?? []),
+  ].filter(Boolean) as string[];
 
   const price = product.price;
   const compare = product.compare_at_price ?? undefined;
@@ -120,6 +128,7 @@ export default async function ProductPage({
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
+      <ScrollToTopOnPathChange />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         {/* Breadcrumb */}
@@ -153,7 +162,7 @@ export default async function ProductPage({
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 mb-16">
           {/* Media */}
           <div>
-            <div className="relative bg-white rounded-3xl shadow-md overflow-hidden p-6 sm:p-8 mb-4">
+            <div className="relative">
               {product.on_sale && isOnSale && (
                 <div className="absolute left-6 top-6 inline-flex items-center rounded-full bg-rose-500 px-3 py-1 text-xs font-semibold text-white shadow-sm z-10">
                   Sale
@@ -172,44 +181,8 @@ export default async function ProductPage({
                 </div>
               )}
 
-              {image && (
-                <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-gray-100">
-                  <SafeImage
-                    src={image}
-                    alt={product.title}
-                    fill
-                    sizes="(min-width: 1024px) 40rem, (min-width: 768px) 50vw, 100vw"
-                    priority
-                    className="object-cover transition-transform duration-300 hover:scale-105"
-                  />
-                </div>
-              )}
-
-              {!image && (
-                <div className="flex aspect-square items-center justify-center rounded-xl bg-gray-100 text-gray-400 text-sm">
-                  No image available
-                </div>
-              )}
+              <ProductImageGallery title={product.title} images={images} />
             </div>
-
-            {product.gallery_images && product.gallery_images.length > 1 && (
-              <div className="grid grid-cols-4 gap-3">
-                {product.gallery_images.slice(0, 4).map((src, idx) => (
-                  <div
-                    key={src + idx}
-                    className="relative aspect-square overflow-hidden rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                  >
-                    <SafeImage
-                      src={src}
-                      alt={`${product.title} thumbnail ${idx + 1}`}
-                      fill
-                      sizes="(min-width: 1024px) 10rem, (min-width: 640px) 15vw, 20vw"
-                      className="object-cover"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Content */}
@@ -274,8 +247,10 @@ export default async function ProductPage({
 
             {/* Actions */}
             <div className="mb-8 flex flex-col gap-3">
-              <div className="flex flex-wrap gap-2">
-                <AddToCartButton product={product} />
+              <div className="flex gap-3 flex-wrap">
+                <div className="w-2/3">
+                  <AddToCartButton product={product} />
+                </div>
                 <FavouriteButton productId={product.id} />
               </div>
 
