@@ -19,9 +19,24 @@ export function RichTextEditor({
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement | null>(null);
 
+  const applyListStyling = (root: HTMLElement) => {
+    const uls = root.querySelectorAll("ul");
+    const ols = root.querySelectorAll("ol");
+
+    uls.forEach((ul) => {
+      ul.classList.add("list-disc", "pl-5", "mb-2");
+    });
+    ols.forEach((ol) => {
+      ol.classList.add("list-decimal", "pl-5", "mb-2");
+    });
+  };
+
   useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = value || "";
+    const el = editorRef.current;
+    if (!el) return;
+    if (el.innerHTML !== value) {
+      el.innerHTML = value || "";
+      applyListStyling(el);
     }
   }, [value]);
 
@@ -227,8 +242,10 @@ export function RichTextEditor({
         contentEditable
         suppressContentEditableWarning
         onInput={() => {
-          if (!editorRef.current) return;
-          onChange(editorRef.current.innerHTML);
+          const el = editorRef.current;
+          if (!el) return;
+          applyListStyling(el);
+          onChange(el.innerHTML);
         }}
         data-placeholder={placeholder}
       />
