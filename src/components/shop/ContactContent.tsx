@@ -3,9 +3,6 @@
 import { useState } from "react";
 import { Mail, Phone, MapPin, Clock, Send, MessageCircle } from "lucide-react";
 import Link from "next/link";
-import Header from "@/components/shared/Header";
-import Footer from "@/components/shared/Footer";
-import FloatingButtons from "@/components/shop/FloatingButtons";
 import type { ContactSections } from "@/lib/types/page-sections";
 
 const METHOD_ICONS = [Phone, MessageCircle, Mail, MapPin];
@@ -84,9 +81,7 @@ export function ContactContent({ sections }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-white">
-      <Header />
-
+    <>
       <section className="relative bg-black text-white py-20 overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full filter blur-3xl" />
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-white/10 rounded-full filter blur-3xl" />
@@ -381,8 +376,6 @@ export function ContactContent({ sections }: Props) {
         </div>
       </section>
 
-      <Footer />
-      <FloatingButtons />
-    </div>
+    </>
   );
 }
