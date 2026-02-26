@@ -330,6 +330,12 @@ export default function Header() {
               >
                 Audio
               </Link>
+              <Link
+                href="/blog"
+                className="text-gray-900 hover:text-blue-600 font-medium transition-colors whitespace-nowrap"
+              >
+                Blog
+              </Link>
             </nav>
           </div>
         </div>
@@ -460,6 +466,12 @@ export default function Header() {
                 className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
               >
                 About
+              </Link>
+              <Link
+                href="/blog"
+                className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
+              >
+                Blog
               </Link>
               <Link
                 href="/contact-us"
