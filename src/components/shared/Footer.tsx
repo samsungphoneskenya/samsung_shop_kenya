@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { getPublishedBlogs } from "@/lib/actions/blog-actions";
+import { getPublishedBlogs } from "@/lib/queries/blog-queries";
 
 export default async function Footer() {
   const blogs = await getPublishedBlogs(3);

@@ -1,6 +1,6 @@
 import { requireRole } from "@/lib/auth/session";
 import { notFound } from "next/navigation";
-import { getBlogById } from "@/lib/actions/blog-actions";
+import { getBlogById } from "@/lib/queries/blog-queries";
 import { BlogForm } from "@/components/dashboard/blog-form";
 import Link from "next/link";
 

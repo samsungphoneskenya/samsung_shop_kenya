@@ -1,6 +1,6 @@
 import { requireRole } from "@/lib/auth/session";
 import { BlogsTable } from "@/components/dashboard/blogs-table";
-import { getBlogsForDashboard } from "@/lib/actions/blog-actions";
+import { getBlogsForDashboard } from "@/lib/queries/blog-queries";
 import Link from "next/link";
 
 export const metadata = {
