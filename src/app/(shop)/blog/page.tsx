@@ -2,7 +2,7 @@ import Header from "@/components/shared/Header";
 import Footer from "@/components/shared/Footer";
 import FloatingButtons from "@/components/shop/FloatingButtons";
 import Link from "next/link";
-import { getPublishedBlogs } from "@/lib/actions/blog-actions";
+import { getPublishedBlogs } from "@/lib/queries/blog-queries";
 
 export const metadata = {
   title: "Blog | Samsung Shop Kenya",

@@ -4,7 +4,10 @@ import Footer from "@/components/shared/Footer";
 import FloatingButtons from "@/components/shop/FloatingButtons";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getBlogBySlug, getPublishedBlogs } from "@/lib/actions/blog-actions";
+import {
+  getBlogBySlug,
+  getPublishedBlogs,
+} from "@/lib/queries/blog-queries";
 
 type Params = { slug: string };
 
