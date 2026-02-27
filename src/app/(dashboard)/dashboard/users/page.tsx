@@ -54,6 +54,11 @@ export default async function UsersPage({
     .select("*", { count: "exact", head: true })
     .eq("role", "seo_manager");
 
+  const { count: customerCount } = await supabase
+    .from("profiles")
+    .select("*", { count: "exact", head: true })
+    .eq("role", "customer");
+
   return (
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="sm:flex sm:items-center">
@@ -72,6 +77,9 @@ export default async function UsersPage({
           </span>
           <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
             {seoCount || 0} SEO Managers
+          </span>
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+            {seoCount || 0} Customers
           </span>
         </div>
       </div>
