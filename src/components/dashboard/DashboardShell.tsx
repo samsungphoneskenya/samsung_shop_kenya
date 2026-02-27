@@ -12,10 +12,10 @@ import {
   FileText,
   Search,
   Users,
-  BarChart3,
   ChevronLeft,
   Menu,
   LogOut,
+  BookOpenIcon,
 } from "lucide-react";
 import { logout } from "@/lib/auth/actions";
 
@@ -91,7 +91,7 @@ export function DashboardShell({
       {
         href: "/dashboard/blogs",
         label: "blogs",
-        icon: <BarChart3 className="h-5 w-5" />,
+        icon: <BookOpenIcon className="h-5 w-5" />,
         show: (role) => role === "admin",
       },
     ],
@@ -118,19 +118,12 @@ export function DashboardShell({
             height={40}
             className={`h-10 w-auto ${collapsed ? "hidden" : "block"}`}
           />
-          <span
-            className={`text-sm font-semibold text-gray-900 truncate ${
-              collapsed ? "hidden" : "block"
-            }`}
-          >
-            Dashboard
-          </span>
         </Link>
 
         <button
           type="button"
           onClick={() => setCollapsed((v) => !v)}
-          className="hidden lg:inline-flex rounded-md p-2 text-gray-600 hover:bg-gray-100"
+          className="hidden lg:inline-flex rounded-md p-2 text-gray-600 hover:bg-gray-100 pointer"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           <ChevronLeft
