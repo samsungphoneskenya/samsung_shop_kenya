@@ -255,7 +255,7 @@ export default async function ProductPage({
               </div>
 
               <Link
-                href={`https://wa.me/254758313512?text=${encodeURIComponent(
+                href={`https://wa.me/254704381982?text=${encodeURIComponent(
                   `Hi, I'm interested in ${product.title} (${
                     product.category_name ?? "Samsung"
                   }) at KES ${price.toLocaleString()}.`

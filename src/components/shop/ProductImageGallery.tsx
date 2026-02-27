@@ -176,13 +176,16 @@ function CanvasImageViewer({
 
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+
+  // Track drag state in a ref so mouse-move handlers don't need pan in deps
   const dragRef = useRef<{
     dragging: boolean;
     startX: number;
     startY: number;
     panX: number;
     panY: number;
-  }>({ dragging: false, startX: 0, startY: 0, panX: 0, panY: 0 });
+    moved: boolean; // did the pointer actually move? used to distinguish click vs drag
+  }>({ dragging: false, startX: 0, startY: 0, panX: 0, panY: 0, moved: false });
 
   const src = images[index] ?? "";
 
@@ -208,7 +211,6 @@ function CanvasImageViewer({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
-    // Fit image to viewport, then apply zoom/pan.
     const scaleFit = Math.min(w / img.naturalWidth, h / img.naturalHeight);
     const scale = scaleFit * zoom;
     const drawW = img.naturalWidth * scale;
@@ -233,16 +235,8 @@ function CanvasImageViewer({
     setPan({ x: 0, y: 0 });
 
     const handleLoad = () => draw();
-    const handleError = () => {
-      // If image can't be drawn, still keep viewer open; canvas will be blank.
-    };
-
     img.addEventListener("load", handleLoad);
-    img.addEventListener("error", handleError);
-    return () => {
-      img.removeEventListener("load", handleLoad);
-      img.removeEventListener("error", handleError);
-    };
+    return () => img.removeEventListener("load", handleLoad);
   }, [src, open, draw]);
 
   useEffect(() => {
@@ -252,7 +246,6 @@ function CanvasImageViewer({
 
   useEffect(() => {
     if (!open) return;
-
     const onResize = () => draw();
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
@@ -260,17 +253,14 @@ function CanvasImageViewer({
 
   useEffect(() => {
     if (!open) return;
-
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onOpenChange(false);
         onClose();
       }
       if (e.key === "ArrowLeft")
         onIndexChange((index - 1 + images.length) % images.length);
       if (e.key === "ArrowRight") onIndexChange((index + 1) % images.length);
     };
-
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, index, images.length, onClose, onIndexChange, onOpenChange]);
@@ -286,6 +276,45 @@ function CanvasImageViewer({
 
   if (!open) return null;
 
+  // ── Pointer handlers on the canvas ─────────────────────────────────────────
+  // A plain click (no meaningful drag) on the canvas backdrop closes the viewer.
+  // We distinguish drag vs. click via the `moved` flag.
+  const handleCanvasPointerDown = (e: React.MouseEvent) => {
+    dragRef.current = {
+      dragging: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      panX: pan.x,
+      panY: pan.y,
+      moved: false,
+    };
+  };
+
+  const handleCanvasPointerMove = (e: React.MouseEvent) => {
+    if (!dragRef.current.dragging) return;
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+    // Only count as a drag if pointer moved > 4px
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+      dragRef.current.moved = true;
+    }
+    if (dragRef.current.moved) {
+      setPan({ x: dragRef.current.panX + dx, y: dragRef.current.panY + dy });
+    }
+  };
+
+  const handleCanvasPointerUp = () => {
+    dragRef.current.dragging = false;
+  };
+
+  // Clicking the canvas area (not a drag) closes the viewer
+  const handleCanvasClick = () => {
+    if (!dragRef.current.moved) {
+      onClose();
+    }
+    dragRef.current.moved = false;
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 bg-black/80"
@@ -293,76 +322,69 @@ function CanvasImageViewer({
       aria-modal="true"
       aria-label="Image viewer"
     >
-      <div className="absolute inset-0" onClick={onClose} />
-
-      <div className="relative z-10 h-full w-full">
-        <div className="absolute left-0 right-0 top-0 flex items-center justify-between gap-3 p-4 text-white">
+      {/* Full content wrapper — pointer events managed per-element */}
+      <div className="relative h-full w-full">
+        {/* ── Header bar ── */}
+        <div className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between gap-3 p-4 text-white">
           <div className="min-w-0">
             <p className="text-sm font-semibold truncate">{title}</p>
             <p className="text-xs text-white/70">
               Image {index + 1} of {images.length}
             </p>
           </div>
+          {/* Close button — stopPropagation so the canvas click handler doesn't fire */}
           <button
             type="button"
-            onClick={onClose}
-            className="rounded-full bg-white/10 p-2 hover:bg-white/20"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            className="rounded-full bg-white/10 p-2 hover:bg-white/20 transition-colors"
             aria-label="Close viewer"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="absolute inset-x-0 bottom-0 top-0 pt-16 pb-16">
-          <div
-            ref={containerRef}
-            className="h-full w-full"
-            onWheel={(e) => {
-              e.preventDefault();
-              const delta = e.deltaY;
-              setZoom((z) => clamp(z * (delta > 0 ? 0.9 : 1.1), 0.75, 6));
-            }}
-            onMouseDown={(e) => {
-              dragRef.current = {
-                dragging: true,
-                startX: e.clientX,
-                startY: e.clientY,
-                panX: pan.x,
-                panY: pan.y,
-              };
-            }}
-            onMouseMove={(e) => {
-              if (!dragRef.current.dragging) return;
-              const dx = e.clientX - dragRef.current.startX;
-              const dy = e.clientY - dragRef.current.startY;
-              setPan({
-                x: dragRef.current.panX + dx,
-                y: dragRef.current.panY + dy,
-              });
-            }}
-            onMouseUp={() => (dragRef.current.dragging = false)}
-            onMouseLeave={() => (dragRef.current.dragging = false)}
-          >
-            <canvas ref={canvasRef} className="block h-full w-full" />
-          </div>
+        {/* ── Canvas area (click-to-close + drag-to-pan) ── */}
+        <div
+          ref={containerRef}
+          className="absolute inset-0 pt-16 pb-16"
+          onWheel={(e) => {
+            e.preventDefault();
+            setZoom((z) => clamp(z * (e.deltaY > 0 ? 0.9 : 1.1), 0.75, 6));
+          }}
+          onMouseDown={handleCanvasPointerDown}
+          onMouseMove={handleCanvasPointerMove}
+          onMouseUp={handleCanvasPointerUp}
+          onMouseLeave={handleCanvasPointerUp}
+          onClick={handleCanvasClick}
+          style={{ cursor: zoom > 1 ? "grab" : "zoom-out" }}
+        >
+          <canvas ref={canvasRef} className="block h-full w-full" />
         </div>
 
+        {/* ── Prev / Next buttons ── */}
         {images.length > 1 && (
           <>
             <button
               type="button"
-              onClick={() =>
-                onIndexChange((index - 1 + images.length) % images.length)
-              }
-              className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white hover:bg-white/20"
+              onClick={(e) => {
+                e.stopPropagation();
+                onIndexChange((index - 1 + images.length) % images.length);
+              }}
+              className="absolute left-4 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white hover:bg-white/20 transition-colors"
               aria-label="Previous image"
             >
               <ChevronLeft className="h-6 w-6" />
             </button>
             <button
               type="button"
-              onClick={() => onIndexChange((index + 1) % images.length)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white hover:bg-white/20"
+              onClick={(e) => {
+                e.stopPropagation();
+                onIndexChange((index + 1) % images.length);
+              }}
+              className="absolute right-4 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white hover:bg-white/20 transition-colors"
               aria-label="Next image"
             >
               <ChevronRight className="h-6 w-6" />
@@ -370,8 +392,9 @@ function CanvasImageViewer({
           </>
         )}
 
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-white/10 px-4 py-2 text-xs text-white/80">
-          Scroll to zoom, drag to pan
+        {/* ── Hint ── */}
+        <div className="pointer-events-none absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-full bg-white/10 px-4 py-2 text-xs text-white/80">
+          Click anywhere to close · Scroll to zoom · Drag to pan
         </div>
       </div>
     </div>
