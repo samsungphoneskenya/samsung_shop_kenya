@@ -61,6 +61,26 @@ export default async function PermissionsPage() {
         "Cannot manage orders",
       ],
     },
+    customer: {
+      name: "Customer",
+      color: "yellow",
+      description: "View and Edit their personal details and orders only",
+      permissions: [
+        "Can view orders attached to their ID",
+        "Can give reviews of orders with their ID",
+        "Can update and view personal details i.e name, email and phone numbers",
+        "Cannot view products and pages",
+        "Cannot Update SEO metadata",
+        "Cannot Run SEO audits",
+        "Cannot Manage sitemaps",
+        "Cannot Generate schema markup",
+        "Cannot View analytics",
+        "Cannot View own activity logs",
+        "Cannot edit content",
+        "Cannot manage users",
+        "Cannot manage orders",
+      ],
+    },
   };
 
   return (
