@@ -331,10 +331,10 @@ export default function Header() {
                 Audio
               </Link>
               <Link
-                href="/blog"
+                href="/resources"
                 className="text-gray-900 hover:text-blue-600 font-medium transition-colors whitespace-nowrap"
               >
-                Blog
+                Resources
               </Link>
             </nav>
           </div>
