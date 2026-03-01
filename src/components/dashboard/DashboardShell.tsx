@@ -196,7 +196,7 @@ export function DashboardShell({
   );
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen text-black bg-gray-100">
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
