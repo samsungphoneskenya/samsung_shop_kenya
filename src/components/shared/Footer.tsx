@@ -24,14 +24,14 @@ export default async function Footer() {
             <div className="flex items-start justify-between gap-6 flex-col sm:flex-row">
               <div>
                 <p className="text-xs font-semibold tracking-[0.25em] uppercase text-sky-400 mb-2">
-                  From our blog
+                  From our resources
                 </p>
                 <h3 className="text-lg font-semibold text-white">
                   Tips, FAQs & guides for getting more from your Galaxy devices
                 </h3>
               </div>
               <Link
-                href="/blog"
+                href="/resources"
                 className="text-xs font-semibold text-sky-300 hover:text-sky-100"
               >
                 View all articles →
@@ -41,7 +41,7 @@ export default async function Footer() {
               {blogs.map((blog) => (
                 <Link
                   key={blog.id}
-                  href={`/blog/${blog.slug}`}
+                  href={`/resources/${blog.slug}`}
                   className="group rounded-xl border border-gray-800 bg-gray-900/70 px-4 py-3 text-left hover:border-sky-400 hover:bg-gray-900 transition-colors"
                 >
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-sky-400 mb-1">

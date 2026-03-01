@@ -248,7 +248,7 @@ export default async function ProductPage({
             {/* Actions */}
             <div className="mb-8 flex flex-col gap-3">
               <div className="flex gap-3 flex-wrap">
-                <div className="w-2/3">
+                <div className="lg:w-2/3">
                   <AddToCartButton product={product} />
                 </div>
                 <FavouriteButton productId={product.id} />

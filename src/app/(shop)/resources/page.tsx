@@ -20,7 +20,7 @@ export default async function BlogIndexPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
         <header className="mb-8 sm:mb-10">
           <p className="text-xs font-semibold tracking-[0.25em] text-slate-500 uppercase mb-2">
-            Blog
+            Resources
           </p>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 mb-2">
             Guides & stories from Samsung Shop Kenya
@@ -40,7 +40,7 @@ export default async function BlogIndexPage() {
             {blogs.map((blog) => (
               <Link
                 key={blog.id}
-                href={`/blog/${blog.slug}`}
+                href={`/resources/${blog.slug}`}
                 className="group bg-white rounded-2xl shadow-sm border border-slate-200 hover:border-slate-900 hover:-translate-y-1 hover:shadow-lg transition-all duration-200 flex flex-col p-5"
               >
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-sky-600 mb-1">

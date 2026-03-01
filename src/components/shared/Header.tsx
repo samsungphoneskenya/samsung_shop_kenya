@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   ShoppingCart,
   Menu,
@@ -9,10 +9,12 @@ import {
   Search,
   User,
   ChevronDown,
+  ChevronRight,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { SafeImage } from "@/components/shared/SafeImage";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,11 +29,108 @@ type SearchResultProduct = {
   featured_image: string | null;
 };
 
+// ─── Top progress bar shown during navigation ────────────────────────────────
+function NavProgressBar({ active }: { active: boolean }) {
+  const [width, setWidth] = useState(0);
+  const [visible, setVisible] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (active) {
+      setVisible(true);
+      setWidth(0);
+      // Quickly jump to ~30%, then slowly crawl to ~85%
+      const t1 = setTimeout(() => setWidth(30), 50);
+      const t2 = setTimeout(() => setWidth(60), 300);
+      const t3 = setTimeout(() => setWidth(85), 800);
+      timerRef.current = t3;
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+      };
+    } else if (visible) {
+      // Complete the bar, then fade out
+      setWidth(100);
+      const t = setTimeout(() => {
+        setVisible(false);
+        setWidth(0);
+      }, 400);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
+  if (!visible) return null;
+
+  return (
+    <div className="fixed top-0 left-0 right-0 z-[9999] h-[3px] pointer-events-none">
+      <div
+        className="h-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)] transition-all ease-out"
+        style={{
+          width: `${width}%`,
+          transitionDuration: active
+            ? width < 30
+              ? "200ms"
+              : "600ms"
+            : "300ms",
+        }}
+      />
+    </div>
+  );
+}
+
+// ─── Wrapper that tracks which link is loading ────────────────────────────────
+function MobileNavLink({
+  href,
+  onClick,
+  children,
+  className,
+}: {
+  href: string;
+  onClick?: () => void;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const [loading, setLoading] = useState(false);
+  const pathname = usePathname();
+
+  // When the route changes, the link is no longer loading
+  useEffect(() => {
+    // Schedule setLoading(false) after paint to avoid cascading renders
+    requestAnimationFrame(() => setLoading(false));
+  }, [pathname]);
+
+  const handleClick = () => {
+    setLoading(true);
+    onClick?.();
+  };
+
+  return (
+    <Link
+      href={href}
+      onClick={handleClick}
+      className={`${className ?? ""} relative`}
+    >
+      {children}
+      {loading && (
+        <span className="absolute right-4 top-1/2 -translate-y-1/2">
+          <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+        </span>
+      )}
+    </Link>
+  );
+}
+
 export default function Header() {
   const { getCartCount, getCartTotal } = useCart();
   const { user, profile } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileShopExpanded, setMobileShopExpanded] = useState(false);
+  const [mobileAccessoriesExpanded, setMobileAccessoriesExpanded] =
+    useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResultProduct[]>([]);
   const [showResults, setShowResults] = useState(false);
@@ -41,7 +140,22 @@ export default function Header() {
   const mobileSearchRef = useRef<HTMLDivElement>(null);
   const accessoriesRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdowns when clicking outside
+  // ── Global nav loading state (drives the top progress bar) ────────────────
+  const [navLoading, setNavLoading] = useState(false);
+
+  const startNavLoading = useCallback(() => setNavLoading(true), []);
+  const stopNavLoading = useCallback(() => setNavLoading(false), []);
+
+  // Stop the bar and close mobile menu whenever the route actually changes,
+  // but avoid triggering cascading renders by scheduling state updates after paint.
+  useEffect(() => {
+    // Schedule state updates after paint to avoid synchronous setState issues
+    requestAnimationFrame(() => {
+      stopNavLoading();
+      setMobileMenuOpen(false);
+    });
+    // Only depends on pathname and stopNavLoading
+  }, [pathname, stopNavLoading]);
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -97,8 +211,19 @@ export default function Header() {
     return () => clearTimeout(debounce);
   }, [searchQuery]);
 
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  const closeMobileMenu = () => setMobileMenuOpen(false);
+
+  const handleMobileLinkClick = () => {
+    startNavLoading();
+    closeMobileMenu();
+  };
+
   return (
     <>
+      {/* Top progress bar – shown while navigating on mobile */}
+      <NavProgressBar active={navLoading} />
+
       {/* Main Header */}
       <header className="bg-white shadow-sm sticky top-0 z-50">
         {/* Top Bar - Logo, Search, Icons */}
@@ -106,7 +231,7 @@ export default function Header() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-20">
               {/* Logo */}
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <Link href="/" className="flex items-center">
                   <Image
                     src="/images/logo.png"
@@ -275,7 +400,7 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Bottom Bar - Navigation Menu (all links use /shop?category=<slug>) */}
+        {/* Bottom Bar - Navigation Menu */}
         <div className="hidden lg:block bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <nav className="flex items-center flex-wrap gap-x-6 gap-y-2 h-12">
@@ -331,10 +456,10 @@ export default function Header() {
                 Audio
               </Link>
               <Link
-                href="/blog"
+                href="/resources"
                 className="text-gray-900 hover:text-blue-600 font-medium transition-colors whitespace-nowrap"
               >
-                Blog
+                Resources
               </Link>
             </nav>
           </div>
@@ -351,6 +476,7 @@ export default function Header() {
                   setShowResults(false);
                   const q = searchQuery.trim();
                   if (q) {
+                    startNavLoading();
                     router.push(`/shop?q=${encodeURIComponent(q)}`);
                     setMobileSearchOpen(false);
                   }
@@ -384,6 +510,7 @@ export default function Header() {
                           setShowResults(false);
                           setSearchQuery("");
                           setMobileSearchOpen(false);
+                          startNavLoading();
                         }}
                         className="flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
                       >
@@ -421,77 +548,140 @@ export default function Header() {
           </div>
         )}
 
-        {/* Mobile Menu (all shop links use /shop?category=<slug>) */}
+        {/* ── Mobile Menu ──────────────────────────────────────────────────── */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-200 bg-white">
-            <div className="px-4 py-4 space-y-1">
-              <Link
+          <div className="md:hidden border-t border-gray-200 bg-white max-h-[70vh] overflow-y-auto overscroll-contain">
+            <nav
+              className="px-3 py-3 space-y-0.5"
+              aria-label="Mobile navigation"
+            >
+              <MobileNavLink
                 href="/"
-                className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
+                onClick={handleMobileLinkClick}
+                className="flex items-center min-h-[48px] py-3 px-4 text-gray-800 font-medium rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors"
               >
                 Home
-              </Link>
-              <Link
+              </MobileNavLink>
+
+              <MobileNavLink
                 href="/shop"
-                className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
+                onClick={handleMobileLinkClick}
+                className="flex items-center min-h-[48px] py-3 px-4 text-gray-800 font-medium rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors"
               >
-                Shop
-              </Link>
-              {NAV_TOP_LINKS.map((item) => (
-                <Link
-                  key={item.slug}
-                  href={`/shop?category=${encodeURIComponent(item.slug)}`}
-                  className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
+                Shop All
+              </MobileNavLink>
+
+              {/* Shop categories (collapsible) */}
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => setMobileShopExpanded(!mobileShopExpanded)}
+                  className="flex w-full items-center justify-between min-h-[48px] py-3 px-4 text-gray-800 font-medium rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors text-left"
+                  aria-expanded={mobileShopExpanded}
                 >
-                  {item.label}
-                </Link>
-              ))}
-              {NAV_ACCESSORIES_LINKS.map((item) => (
-                <Link
-                  key={item.slug}
-                  href={`/shop?category=${encodeURIComponent(item.slug)}`}
-                  className="block py-2 px-4 pl-6 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                  <span>Phones &amp; Tablets</span>
+                  <ChevronRight
+                    className={`h-5 w-5 text-gray-500 transition-transform ${
+                      mobileShopExpanded ? "rotate-90" : ""
+                    }`}
+                  />
+                </button>
+                {mobileShopExpanded && (
+                  <div className="pl-2 pb-2 space-y-0.5 border-l-2 border-gray-200 ml-4">
+                    {NAV_TOP_LINKS.map((item) => (
+                      <MobileNavLink
+                        key={item.slug}
+                        href={`/shop?category=${encodeURIComponent(item.slug)}`}
+                        onClick={handleMobileLinkClick}
+                        className="flex items-center min-h-[44px] py-2.5 px-4 text-gray-700 rounded-r-lg hover:bg-gray-100 active:bg-gray-200 transition-colors"
+                      >
+                        {item.label}
+                      </MobileNavLink>
+                    ))}
+                    <MobileNavLink
+                      href="/shop?category=galaxy-buds"
+                      onClick={handleMobileLinkClick}
+                      className="flex items-center min-h-[44px] py-2.5 px-4 text-gray-700 rounded-r-lg hover:bg-gray-100 active:bg-gray-200 transition-colors"
+                    >
+                      Audio
+                    </MobileNavLink>
+                  </div>
+                )}
+              </div>
+
+              {/* Accessories (collapsible) */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMobileAccessoriesExpanded(!mobileAccessoriesExpanded)
+                  }
+                  className="flex w-full items-center justify-between min-h-[48px] py-3 px-4 text-gray-800 font-medium rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors text-left"
+                  aria-expanded={mobileAccessoriesExpanded}
                 >
-                  {item.label}
-                </Link>
-              ))}
-              <Link
-                href="/shop?category=galaxy-buds"
-                className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
-              >
-                Audio
-              </Link>
-              <Link
-                href="/about-us"
-                className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
-              >
-                About
-              </Link>
-              <Link
-                href="/blog"
-                className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
-              >
-                Blog
-              </Link>
-              <Link
-                href="/contact-us"
-                className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
-              >
-                Contact
-              </Link>
-              <Link
-                href={
-                  user
-                    ? profile?.role === "admin"
-                      ? "/dashboard"
-                      : "/account"
-                    : "/login"
-                }
-                className="block py-3 px-4 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
-              >
-                {user ? "My Account" : "Sign In"}
-              </Link>
-            </div>
+                  <span>Accessories</span>
+                  <ChevronRight
+                    className={`h-5 w-5 text-gray-500 transition-transform ${
+                      mobileAccessoriesExpanded ? "rotate-90" : ""
+                    }`}
+                  />
+                </button>
+                {mobileAccessoriesExpanded && (
+                  <div className="pl-2 pb-2 space-y-0.5 border-l-2 border-gray-200 ml-4">
+                    {NAV_ACCESSORIES_LINKS.map((item) => (
+                      <MobileNavLink
+                        key={item.slug}
+                        href={`/shop?category=${encodeURIComponent(item.slug)}`}
+                        onClick={handleMobileLinkClick}
+                        className="flex items-center min-h-[44px] py-2.5 px-4 text-gray-700 rounded-r-lg hover:bg-gray-100 active:bg-gray-200 transition-colors"
+                      >
+                        {item.label}
+                      </MobileNavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-gray-100 pt-2 mt-2">
+                <MobileNavLink
+                  href="/resources"
+                  onClick={handleMobileLinkClick}
+                  className="flex items-center min-h-[48px] py-3 px-4 text-gray-800 font-medium rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors"
+                >
+                  Resources
+                </MobileNavLink>
+                <MobileNavLink
+                  href="/about-us"
+                  onClick={handleMobileLinkClick}
+                  className="flex items-center min-h-[48px] py-3 px-4 text-gray-800 font-medium rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors"
+                >
+                  About
+                </MobileNavLink>
+                <MobileNavLink
+                  href="/contact-us"
+                  onClick={handleMobileLinkClick}
+                  className="flex items-center min-h-[48px] py-3 px-4 text-gray-800 font-medium rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors"
+                >
+                  Contact
+                </MobileNavLink>
+              </div>
+
+              <div className="border-t border-gray-100 pt-2">
+                <MobileNavLink
+                  href={
+                    user
+                      ? profile?.role === "admin"
+                        ? "/dashboard"
+                        : "/account"
+                      : "/login"
+                  }
+                  onClick={handleMobileLinkClick}
+                  className="flex items-center min-h-[48px] py-3 px-4 text-gray-800 font-medium rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors"
+                >
+                  {user ? "My Account" : "Sign In"}
+                </MobileNavLink>
+              </div>
+            </nav>
           </div>
         )}
       </header>

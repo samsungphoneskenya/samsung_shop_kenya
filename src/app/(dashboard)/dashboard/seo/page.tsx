@@ -191,7 +191,7 @@ export default async function SEODashboardPage() {
         </Link>
 
         <Link
-          href="/dashboard/seo/schema"
+          href="/dashboard/seo/schema-generator"
           className="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-gray-400"
         >
           <div className="flex items-center space-x-3">
